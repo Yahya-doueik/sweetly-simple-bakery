@@ -1,8 +1,17 @@
 import type { Cake } from "@/data/cakes";
+import { motion } from "framer-motion";
 
 export function CakeCard({ cake }: { cake: Cake }) {
   return (
-    <article className="group relative overflow-hidden rounded-2xl bg-card shadow-[var(--shadow-soft)] transition-all duration-500 hover:-translate-y-1 hover:shadow-[var(--shadow-glow)]">
+    <motion.article
+      variants={{
+        hidden: { opacity: 0, y: 24 },
+        visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] } },
+      }}
+      whileHover={{ y: -6 }}
+      transition={{ type: "spring", stiffness: 220, damping: 22 }}
+      className="group relative overflow-hidden rounded-2xl bg-card shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-glow)]"
+    >
       <div className="relative aspect-[4/5] overflow-hidden">
         <img
           src={cake.image}
@@ -10,7 +19,7 @@ export function CakeCard({ cake }: { cake: Cake }) {
           loading="lazy"
           width={900}
           height={1100}
-          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+          className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]"
         />
         {cake.tag && (
           <span className="absolute left-4 top-4 rounded-full bg-background/90 px-3 py-1 text-xs font-medium tracking-wide text-foreground backdrop-blur">
@@ -31,6 +40,6 @@ export function CakeCard({ cake }: { cake: Cake }) {
           Add to box
         </button>
       </div>
-    </article>
+    </motion.article>
   );
 }
