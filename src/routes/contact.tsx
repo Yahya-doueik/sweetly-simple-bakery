@@ -40,7 +40,7 @@ function Contact() {
               <dd className="text-muted-foreground">14 Linden Lane · Mon–Sat 9–7</dd>
             </div>
           </dl>
-        </div>
+        </Reveal>
         <form
           onSubmit={(e) => { e.preventDefault(); alert("Thanks — we'll be in touch within a day."); }}
           className="space-y-5 rounded-2xl bg-card p-8 shadow-[var(--shadow-soft)]"
