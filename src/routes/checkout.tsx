@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -17,10 +17,85 @@ export const Route = createFileRoute("/checkout")({
 });
 
 const SHIPPING_FLAT = 8;
+const CUSTOMER_STORAGE_KEY = "lazycake.checkout.customer.v1";
+const WHATSAPP_NUMBER = "96170914486";
+
+type CustomerDetails = {
+  email: string;
+  phone: string;
+  firstName: string;
+  lastName: string;
+  address: string;
+  city: string;
+  zip: string;
+  country: string;
+  notes: string;
+};
+
+function getCustomerDetails(formData: FormData): CustomerDetails {
+  return {
+    email: formData.get("email")?.toString().trim() ?? "",
+    phone: formData.get("phone")?.toString().trim() ?? "",
+    firstName: formData.get("firstName")?.toString().trim() ?? "",
+    lastName: formData.get("lastName")?.toString().trim() ?? "",
+    address: formData.get("address")?.toString().trim() ?? "",
+    city: formData.get("city")?.toString().trim() ?? "",
+    zip: formData.get("zip")?.toString().trim() ?? "",
+    country: formData.get("country")?.toString().trim() ?? "",
+    notes: formData.get("notes")?.toString().trim() ?? "",
+  };
+}
+
+function formatPrice(price: number) {
+  return `$${price.toFixed(0)}`;
+}
+
+function buildWhatsAppMessage({
+  items,
+  subtotal,
+  shipping,
+  total,
+  customer,
+}: {
+  items: ReturnType<typeof useCart>["items"];
+  subtotal: number;
+  shipping: number;
+  total: number;
+  customer: CustomerDetails;
+}) {
+  const orderLines = items.map(
+    ({ cake, quantity }) =>
+      `- ${cake.name} x${quantity} @ ${formatPrice(cake.price)} = ${formatPrice(cake.price * quantity)}`,
+  );
+
+  const customerLines = [
+    `Name: ${customer.firstName} ${customer.lastName}`.trim(),
+    `Email: ${customer.email}`,
+    `Phone: ${customer.phone}`,
+    `Address: ${customer.address}`,
+    `City: ${customer.city}`,
+    `Postcode: ${customer.zip}`,
+    `Country: ${customer.country}`,
+    customer.notes ? `Delivery notes: ${customer.notes}` : null,
+  ].filter(Boolean);
+
+  return [
+    "Hello, I'd like to place an order from Lazy Cake.",
+    "",
+    "Order details:",
+    ...orderLines,
+    "",
+    `Subtotal: ${formatPrice(subtotal)}`,
+    `Shipping: ${formatPrice(shipping)}`,
+    `Total: ${formatPrice(total)}`,
+    "",
+    "Customer details:",
+    ...customerLines,
+  ].join("\n");
+}
 
 function Checkout() {
-  const { items, subtotal, setQuantity, removeItem, clear } = useCart();
-  const navigate = useNavigate();
+  const { items, subtotal, setQuantity, removeItem } = useCart();
   const [submitting, setSubmitting] = useState(false);
   const shipping = items.length === 0 ? 0 : SHIPPING_FLAT;
   const total = subtotal + shipping;
@@ -29,13 +104,29 @@ function Checkout() {
     e.preventDefault();
     if (items.length === 0) return;
     setSubmitting(true);
-    // Placeholder: real payment integration not enabled.
-    await new Promise((r) => setTimeout(r, 700));
-    const ref = `LC-${Date.now().toString(36).toUpperCase()}`;
-    clear();
-    toast.success("Order placed", { description: `Reference ${ref} — we'll email you a confirmation.` });
-    setSubmitting(false);
-    navigate({ to: "/" });
+    const formData = new FormData(e.currentTarget);
+    const customer = getCustomerDetails(formData);
+
+    try {
+      localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(customer));
+
+      const message = buildWhatsAppMessage({
+        items,
+        subtotal,
+        shipping,
+        total,
+        customer,
+      });
+
+      window.location.assign(
+        `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`,
+      );
+    } catch {
+      toast.error("Unable to start WhatsApp checkout.", {
+        description: "Please try again.",
+      });
+      setSubmitting(false);
+    }
   };
 
   return (
