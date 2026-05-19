@@ -2,21 +2,50 @@ import { Link } from "@tanstack/react-router";
 import { ShoppingBag } from "lucide-react";
 import { useCart } from "@/lib/cart";
 
+function scrollTo(id: string) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: "smooth" });
+}
+
 export function SiteHeader() {
   const { count, openCart } = useCart();
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-        <Link to="/" className="flex items-center gap-2">
+        <a
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          className="flex items-center gap-2"
+        >
           <span className="font-display text-2xl tracking-tight text-foreground">
             Lazy <span className="italic text-accent">Cake</span>
           </span>
-        </Link>
+        </a>
         <nav className="hidden items-center gap-8 text-sm font-medium md:flex">
-          <Link to="/" activeOptions={{ exact: true }} activeProps={{ className: "text-accent" }} className="text-muted-foreground transition-colors hover:text-foreground">Home</Link>
-          <Link to="/menu" activeProps={{ className: "text-accent" }} className="text-muted-foreground transition-colors hover:text-foreground">Menu</Link>
-          <Link to="/about" activeProps={{ className: "text-accent" }} className="text-muted-foreground transition-colors hover:text-foreground">About</Link>
-          <Link to="/contact" activeProps={{ className: "text-accent" }} className="text-muted-foreground transition-colors hover:text-foreground">Contact</Link>
+          <a
+            href="#menu"
+            onClick={(e) => { e.preventDefault(); scrollTo("menu"); }}
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Menu
+          </a>
+          <a
+            href="#about"
+            onClick={(e) => { e.preventDefault(); scrollTo("about"); }}
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            About
+          </a>
+          <a
+            href="#contact"
+            onClick={(e) => { e.preventDefault(); scrollTo("contact"); }}
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Contact
+          </a>
         </nav>
         <button
           onClick={openCart}
