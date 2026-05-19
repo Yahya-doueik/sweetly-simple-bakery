@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
 import heroImg from "@/assets/hero-cake.jpg";
