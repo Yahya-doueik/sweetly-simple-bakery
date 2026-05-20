@@ -208,7 +208,9 @@ function Home() {
                 `Email: ${email}`,
                 `Custom order details: ${message}`,
               ].join("\n");
-              window.location.assign(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappMessage)}`);
+              const whatsappNumber = WHATSAPP_NUMBER.replace(/\D/g, "");
+              if (!whatsappNumber) return;
+              window.location.assign(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`);
             }}
             className="space-y-5 rounded-2xl bg-card p-8 shadow-[var(--shadow-soft)]"
           >
