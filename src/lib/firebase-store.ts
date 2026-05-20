@@ -192,10 +192,7 @@ export function subscribeOrders(onData: (orders: OrderRecord[]) => void) {
         subtotal: Number(data.subtotal ?? 0),
         shipping: Number(data.shipping ?? 0),
         total: Number(data.total ?? 0),
-        status:
-          data.status === "confirmed" || data.status === "fulfilled"
-            ? data.status
-            : "new",
+        status: data.status === "confirmed" || data.status === "fulfilled" ? data.status : "new",
         createdAt: timestampToIso(data.createdAt),
       } satisfies OrderRecord;
     });
@@ -250,10 +247,7 @@ export async function saveAbout(about: AboutContent) {
   await setDoc(doc(db, "content", "about"), about);
 }
 
-export async function updateOrderStatus(
-  orderId: string,
-  status: OrderRecord["status"],
-) {
+export async function updateOrderStatus(orderId: string, status: OrderRecord["status"]) {
   const db = getDb();
   if (!db) return;
   await updateDoc(doc(db, "orders", orderId), { status });

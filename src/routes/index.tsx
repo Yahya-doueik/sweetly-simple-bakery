@@ -7,11 +7,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { CakeCard } from "@/components/CakeCard";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/Reveal";
 import { WHATSAPP_NUMBER } from "@/lib/constants";
-import {
-  bootstrapStoreData,
-  subscribeAbout,
-  subscribeProducts,
-} from "@/lib/firebase-store";
+import { bootstrapStoreData, subscribeAbout, subscribeProducts } from "@/lib/firebase-store";
 import {
   DEFAULT_ABOUT_CONTENT,
   DEFAULT_PRODUCTS,
@@ -23,9 +19,16 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Lazy Cake — Slow-made no-bake cakes" },
-      { name: "description", content: "Hand-finished no-bake chocolate cakes, made slowly with great ingredients. Order online for pickup or local delivery." },
+      {
+        name: "description",
+        content:
+          "Hand-finished no-bake chocolate cakes, made slowly with great ingredients. Order online for pickup or local delivery.",
+      },
       { property: "og:title", content: "Lazy Cake — Slow-made no-bake cakes" },
-      { property: "og:description", content: "Hand-finished no-bake chocolate cakes from our small kitchen." },
+      {
+        property: "og:description",
+        content: "Hand-finished no-bake chocolate cakes from our small kitchen.",
+      },
     ],
   }),
   component: Home,
@@ -38,7 +41,7 @@ const MAX_MESSAGE_LENGTH = 800;
 function sanitizeForWhatsApp(value: FormDataEntryValue | null, maxLength: number) {
   return (value?.toString().trim() ?? "")
     .replace(/\r?\n/g, " ")
-    .replace(/[\u0000-\u001F\u007F]/g, "")
+    .replace(/\p{Cc}/gu, "")
     .slice(0, maxLength);
 }
 
@@ -84,12 +87,15 @@ function Home() {
             transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
             className="relative z-10"
           >
-            <p className="mb-4 text-sm uppercase tracking-[0.25em] text-accent">No-bake · Hand-finished</p>
+            <p className="mb-4 text-sm uppercase tracking-[0.25em] text-accent">
+              No-bake · Hand-finished
+            </p>
             <h1 className="font-display text-5xl leading-[1.05] text-foreground md:text-7xl">
               Slow cakes for <span className="italic">unhurried</span> days.
             </h1>
             <p className="mt-6 max-w-md text-lg text-muted-foreground">
-              We fold great chocolate through buttery biscuits and let time do the rest. No oven. No rush. Just dense, fudgy slices.
+              We fold great chocolate through buttery biscuits and let time do the rest. No oven. No
+              rush. Just dense, fudgy slices.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <a
@@ -153,9 +159,12 @@ function Home() {
       <section id="menu" className="mx-auto max-w-6xl px-6 py-20 scroll-mt-20">
         <Reveal className="max-w-2xl">
           <p className="text-sm uppercase tracking-[0.25em] text-accent">The Menu</p>
-          <h2 className="mt-3 font-display text-5xl text-foreground md:text-6xl">Pick your slice.</h2>
+          <h2 className="mt-3 font-display text-5xl text-foreground md:text-6xl">
+            Pick your slice.
+          </h2>
           <p className="mt-5 text-lg text-muted-foreground">
-            Each cake is set overnight, sliced cold, and packed in a chilled box. Ships locally Tue–Fri.
+            Each cake is set overnight, sliced cold, and packed in a chilled box. Ships locally
+            Tue–Fri.
           </p>
         </Reveal>
         <StaggerGroup className="mt-14 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
@@ -169,7 +178,9 @@ function Home() {
       <section id="about" className="mx-auto max-w-3xl px-6 py-20 scroll-mt-20">
         <Reveal>
           <p className="text-sm uppercase tracking-[0.25em] text-accent">{about.subtitle}</p>
-          <h2 className="mt-3 font-display text-5xl text-foreground md:text-6xl">{about.heading}</h2>
+          <h2 className="mt-3 font-display text-5xl text-foreground md:text-6xl">
+            {about.heading}
+          </h2>
         </Reveal>
         <div className="mt-10 space-y-6 text-lg leading-relaxed text-muted-foreground">
           {about.paragraphs.map((paragraph, index) => (
@@ -181,12 +192,18 @@ function Home() {
       </section>
 
       {/* Contact */}
-      <section id="contact" className="mx-auto grid max-w-5xl gap-16 px-6 py-20 md:grid-cols-2 md:py-28 scroll-mt-20">
+      <section
+        id="contact"
+        className="mx-auto grid max-w-5xl gap-16 px-6 py-20 md:grid-cols-2 md:py-28 scroll-mt-20"
+      >
         <Reveal>
           <p className="text-sm uppercase tracking-[0.25em] text-accent">Say hello</p>
-          <h2 className="mt-3 font-display text-5xl text-foreground md:text-6xl">Custom orders & events.</h2>
+          <h2 className="mt-3 font-display text-5xl text-foreground md:text-6xl">
+            Custom orders & events.
+          </h2>
           <p className="mt-6 text-muted-foreground">
-            Birthdays, weddings, dinner parties, or just a Tuesday — tell us what you're dreaming up.
+            Birthdays, weddings, dinner parties, or just a Tuesday — tell us what you're dreaming
+            up.
           </p>
           <dl className="mt-10 space-y-4 text-sm">
             <div>
@@ -220,23 +237,54 @@ function Home() {
               ].join("\n");
               const whatsappNumber = WHATSAPP_NUMBER.replace(/\D/g, "");
               if (!whatsappNumber) return;
-              window.location.assign(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`);
+              window.location.assign(
+                `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`,
+              );
             }}
             className="space-y-5 rounded-2xl bg-card p-8 shadow-[var(--shadow-soft)]"
           >
             <div>
-              <label htmlFor="name" className="mb-2 block text-sm font-medium text-foreground">Name</label>
-              <input id="name" name="name" maxLength={MAX_NAME_LENGTH} required className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent" />
+              <label htmlFor="name" className="mb-2 block text-sm font-medium text-foreground">
+                Name
+              </label>
+              <input
+                id="name"
+                name="name"
+                maxLength={MAX_NAME_LENGTH}
+                required
+                className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent"
+              />
             </div>
             <div>
-              <label htmlFor="email" className="mb-2 block text-sm font-medium text-foreground">Email</label>
-              <input id="email" name="email" type="email" maxLength={MAX_EMAIL_LENGTH} required className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent" />
+              <label htmlFor="email" className="mb-2 block text-sm font-medium text-foreground">
+                Email
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                maxLength={MAX_EMAIL_LENGTH}
+                required
+                className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent"
+              />
             </div>
             <div>
-              <label htmlFor="msg" className="mb-2 block text-sm font-medium text-foreground">What can we make for you?</label>
-              <textarea id="msg" name="message" rows={5} maxLength={MAX_MESSAGE_LENGTH} required className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent" />
+              <label htmlFor="msg" className="mb-2 block text-sm font-medium text-foreground">
+                What can we make for you?
+              </label>
+              <textarea
+                id="msg"
+                name="message"
+                rows={5}
+                maxLength={MAX_MESSAGE_LENGTH}
+                required
+                className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent"
+              />
             </div>
-            <button type="submit" className="w-full rounded-full bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:opacity-90">
+            <button
+              type="submit"
+              className="w-full rounded-full bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:opacity-90"
+            >
               Send message
             </button>
           </form>

@@ -257,7 +257,9 @@ function AdminDashboard() {
                 <tbody>
                   {orders.map((order) => (
                     <tr key={order.id} className="border-b border-border/50 align-top">
-                      <td className="py-3 pr-4 text-muted-foreground">{formatDate(order.createdAt)}</td>
+                      <td className="py-3 pr-4 text-muted-foreground">
+                        {formatDate(order.createdAt)}
+                      </td>
                       <td className="py-3 pr-4">
                         <p className="font-medium text-foreground">
                           {order.customer.firstName} {order.customer.lastName}
@@ -272,7 +274,9 @@ function AdminDashboard() {
                           </p>
                         ))}
                       </td>
-                      <td className="py-3 pr-4 font-medium text-foreground">${order.total.toFixed(0)}</td>
+                      <td className="py-3 pr-4 font-medium text-foreground">
+                        ${order.total.toFixed(0)}
+                      </td>
                       <td className="py-3 pr-4">
                         <select
                           value={order.status}
@@ -292,7 +296,9 @@ function AdminDashboard() {
                           <option value="fulfilled">Fulfilled</option>
                         </select>
                       </td>
-                      <td className="py-3 text-xs text-muted-foreground">{order.customer.notes || "—"}</td>
+                      <td className="py-3 text-xs text-muted-foreground">
+                        {order.customer.notes || "—"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -333,7 +339,9 @@ function AdminDashboard() {
                         {customer.address}, {customer.city}, {customer.zip}, {customer.country}
                       </td>
                       <td className="py-3 pr-4 text-foreground">{customer.ordersCount}</td>
-                      <td className="py-3 text-xs text-muted-foreground">{formatDate(customer.lastOrderAt)}</td>
+                      <td className="py-3 text-xs text-muted-foreground">
+                        {formatDate(customer.lastOrderAt)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -351,20 +359,55 @@ function AdminDashboard() {
                 Add, edit, and remove products shown on the storefront.
               </p>
               <form onSubmit={onSaveProduct} className="mt-5 grid gap-3">
-                <Field label="Product ID" value={productForm.id} onChange={(value) => setProductForm((prev) => ({ ...prev, id: value }))} />
-                <Field label="Name" value={productForm.name} onChange={(value) => setProductForm((prev) => ({ ...prev, name: value }))} />
-                <Field label="Tagline" value={productForm.tagline} onChange={(value) => setProductForm((prev) => ({ ...prev, tagline: value }))} />
-                <Field label="Description" value={productForm.description} onChange={(value) => setProductForm((prev) => ({ ...prev, description: value }))} />
-                <Field label="Image URL" value={productForm.image} onChange={(value) => setProductForm((prev) => ({ ...prev, image: value }))} />
-                <Field label="Price" type="number" value={String(productForm.price)} onChange={(value) => setProductForm((prev) => ({ ...prev, price: Number(value) || 0 }))} />
-                <Field label="Badge tag (optional)" value={productForm.tag ?? ""} onChange={(value) => setProductForm((prev) => ({ ...prev, tag: value }))} />
+                <Field
+                  label="Product ID"
+                  value={productForm.id}
+                  onChange={(value) => setProductForm((prev) => ({ ...prev, id: value }))}
+                />
+                <Field
+                  label="Name"
+                  value={productForm.name}
+                  onChange={(value) => setProductForm((prev) => ({ ...prev, name: value }))}
+                />
+                <Field
+                  label="Tagline"
+                  value={productForm.tagline}
+                  onChange={(value) => setProductForm((prev) => ({ ...prev, tagline: value }))}
+                />
+                <Field
+                  label="Description"
+                  value={productForm.description}
+                  onChange={(value) => setProductForm((prev) => ({ ...prev, description: value }))}
+                />
+                <Field
+                  label="Image URL"
+                  value={productForm.image}
+                  onChange={(value) => setProductForm((prev) => ({ ...prev, image: value }))}
+                />
+                <Field
+                  label="Price"
+                  type="number"
+                  value={String(productForm.price)}
+                  onChange={(value) =>
+                    setProductForm((prev) => ({ ...prev, price: Number(value) || 0 }))
+                  }
+                />
+                <Field
+                  label="Badge tag (optional)"
+                  value={productForm.tag ?? ""}
+                  onChange={(value) => setProductForm((prev) => ({ ...prev, tag: value }))}
+                />
                 <div className="mt-2 flex flex-wrap gap-3">
                   <button
                     disabled={savingProduct}
                     type="submit"
                     className="rounded-full bg-primary px-6 py-2 text-sm font-medium text-primary-foreground transition-all hover:opacity-90 disabled:opacity-60"
                   >
-                    {savingProduct ? "Saving…" : editingProductId ? "Update product" : "Add product"}
+                    {savingProduct
+                      ? "Saving…"
+                      : editingProductId
+                        ? "Update product"
+                        : "Add product"}
                   </button>
                   {editingProductId && (
                     <button
@@ -395,7 +438,9 @@ function AdminDashboard() {
                           <p className="text-xs text-muted-foreground">{product.id}</p>
                         </td>
                         <td className="py-3 pr-4 text-foreground">${product.price.toFixed(0)}</td>
-                        <td className="py-3 pr-4 text-xs text-muted-foreground">{product.tag || "—"}</td>
+                        <td className="py-3 pr-4 text-xs text-muted-foreground">
+                          {product.tag || "—"}
+                        </td>
                         <td className="py-3">
                           <div className="flex gap-2">
                             <button
@@ -425,8 +470,16 @@ function AdminDashboard() {
                 Edit the homepage About section text.
               </p>
               <form onSubmit={onSaveAbout} className="mt-5 space-y-3">
-                <Field label="Subtitle" value={about.subtitle} onChange={(value) => setAbout((prev) => ({ ...prev, subtitle: value }))} />
-                <Field label="Heading" value={about.heading} onChange={(value) => setAbout((prev) => ({ ...prev, heading: value }))} />
+                <Field
+                  label="Subtitle"
+                  value={about.subtitle}
+                  onChange={(value) => setAbout((prev) => ({ ...prev, subtitle: value }))}
+                />
+                <Field
+                  label="Heading"
+                  value={about.heading}
+                  onChange={(value) => setAbout((prev) => ({ ...prev, heading: value }))}
+                />
                 {about.paragraphs.map((paragraph, index) => (
                   <label key={`about-${index}`} className="block">
                     <span className="mb-2 block text-xs uppercase tracking-widest text-muted-foreground">
@@ -486,7 +539,9 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-xs uppercase tracking-widest text-muted-foreground">{label}</span>
+      <span className="mb-2 block text-xs uppercase tracking-widest text-muted-foreground">
+        {label}
+      </span>
       <input
         type={type}
         value={value}

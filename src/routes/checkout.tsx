@@ -109,8 +109,7 @@ function buildWhatsAppMessage({
 function Checkout() {
   const { items, subtotal, setQuantity, removeItem, clear } = useCart();
   const [submitting, setSubmitting] = useState(false);
-  const [savedCustomer, setSavedCustomer] =
-    useState<CustomerDetails>(EMPTY_CUSTOMER_DETAILS);
+  const [savedCustomer, setSavedCustomer] = useState<CustomerDetails>(EMPTY_CUSTOMER_DETAILS);
   const shipping = items.length === 0 ? 0 : SHIPPING_FLAT;
   const total = subtotal + shipping;
 
@@ -195,22 +194,58 @@ function Checkout() {
               <form onSubmit={onSubmit} className="space-y-8">
                 <fieldset className="space-y-4">
                   <legend className="font-display text-2xl text-foreground">Contact</legend>
-                  <Field label="Email" name="email" type="email" defaultValue={savedCustomer.email} required />
-                  <Field label="Phone" name="phone" type="tel" defaultValue={savedCustomer.phone} required />
+                  <Field
+                    label="Email"
+                    name="email"
+                    type="email"
+                    defaultValue={savedCustomer.email}
+                    required
+                  />
+                  <Field
+                    label="Phone"
+                    name="phone"
+                    type="tel"
+                    defaultValue={savedCustomer.phone}
+                    required
+                  />
                 </fieldset>
                 <fieldset className="space-y-4">
                   <legend className="font-display text-2xl text-foreground">Delivery</legend>
                   <div className="grid gap-4 md:grid-cols-2">
-                    <Field label="First name" name="firstName" defaultValue={savedCustomer.firstName} required />
-                    <Field label="Last name" name="lastName" defaultValue={savedCustomer.lastName} required />
+                    <Field
+                      label="First name"
+                      name="firstName"
+                      defaultValue={savedCustomer.firstName}
+                      required
+                    />
+                    <Field
+                      label="Last name"
+                      name="lastName"
+                      defaultValue={savedCustomer.lastName}
+                      required
+                    />
                   </div>
-                  <Field label="Address" name="address" defaultValue={savedCustomer.address} required />
+                  <Field
+                    label="Address"
+                    name="address"
+                    defaultValue={savedCustomer.address}
+                    required
+                  />
                   <div className="grid gap-4 md:grid-cols-3">
                     <Field label="City" name="city" defaultValue={savedCustomer.city} required />
                     <Field label="Postcode" name="zip" defaultValue={savedCustomer.zip} required />
-                    <Field label="Country" name="country" defaultValue={savedCustomer.country} required />
+                    <Field
+                      label="Country"
+                      name="country"
+                      defaultValue={savedCustomer.country}
+                      required
+                    />
                   </div>
-                  <Field label="Delivery notes (optional)" name="notes" defaultValue={savedCustomer.notes} />
+                  <Field
+                    label="Delivery notes (optional)"
+                    name="notes"
+                    defaultValue={savedCustomer.notes}
+                  />
                 </fieldset>
                 <button
                   type="submit"
