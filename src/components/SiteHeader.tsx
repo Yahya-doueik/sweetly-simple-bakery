@@ -2,11 +2,6 @@ import { ShoppingBag } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useCart } from "@/lib/cart";
 
-function scrollTo(id: string) {
-  const el = document.getElementById(id);
-  if (el) el.scrollIntoView({ behavior: "smooth" });
-}
-
 export function SiteHeader() {
   const { count, openCart } = useCart();
   return (
@@ -18,27 +13,27 @@ export function SiteHeader() {
           </span>
         </Link>
         <nav className="hidden items-center gap-8 text-sm font-medium md:flex">
-          <a
-            href="#menu"
-            onClick={(e) => { e.preventDefault(); scrollTo("menu"); }}
+          <Link
+            to="/"
+            hash="menu"
             className="text-muted-foreground transition-colors hover:text-foreground"
           >
             Menu
-          </a>
-          <a
-            href="#about"
-            onClick={(e) => { e.preventDefault(); scrollTo("about"); }}
+          </Link>
+          <Link
+            to="/"
+            hash="about"
             className="text-muted-foreground transition-colors hover:text-foreground"
           >
             About
-          </a>
-          <a
-            href="#contact"
-            onClick={(e) => { e.preventDefault(); scrollTo("contact"); }}
+          </Link>
+          <Link
+            to="/"
+            hash="contact"
             className="text-muted-foreground transition-colors hover:text-foreground"
           >
             Contact
-          </a>
+          </Link>
         </nav>
         <button
           onClick={openCart}
