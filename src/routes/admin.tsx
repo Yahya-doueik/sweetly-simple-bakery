@@ -6,14 +6,17 @@ import { SiteFooter } from "@/components/SiteFooter";
 import {
   bootstrapStoreData,
   deleteCustomer,
+  deleteNews,
   deleteOrder,
   deleteProduct,
   saveAbout,
   saveHomeContent,
+  saveNews,
   saveProduct,
   subscribeAbout,
   subscribeCustomers,
   subscribeHomeContent,
+  subscribeNews,
   subscribeOrders,
   subscribeProducts,
   toggleProductHidden,
@@ -26,6 +29,8 @@ import {
   DEFAULT_HOME_CONTENT,
   type AboutContent,
   type HomeContent,
+  type NewsItem,
+  type NewsPlacement,
   type Product,
 } from "@/lib/store-data";
 
@@ -49,13 +54,21 @@ const EMPTY_PRODUCT: Product = {
   hidden: false,
 };
 
+const EMPTY_NEWS: NewsItem = {
+  id: "",
+  title: "",
+  message: "",
+  placement: "hero",
+  sortOrder: 0,
+};
+
 function formatDate(date: string | null) {
   if (!date) return "—";
   return new Date(date).toLocaleString();
 }
 
 function totalRevenue(orders: OrderRecord[]) {
-  return orders.reduce((sum, order) => sum + order.total, 0);
+  return orders.reduce((sum, order) => sum + (order.status === "fulfilled" ? order.total : 0), 0);
 }
 
 function AdminDashboard() {
@@ -68,10 +81,14 @@ function AdminDashboard() {
   const [customers, setCustomers] = useState<CustomerRecord[]>([]);
   const [about, setAbout] = useState<AboutContent>(DEFAULT_ABOUT_CONTENT);
   const [home, setHome] = useState<HomeContent>(DEFAULT_HOME_CONTENT);
+  const [news, setNews] = useState<NewsItem[]>([]);
 
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [productForm, setProductForm] = useState<Product>(EMPTY_PRODUCT);
+  const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
+  const [newsForm, setNewsForm] = useState<NewsItem>(EMPTY_NEWS);
   const [savingProduct, setSavingProduct] = useState(false);
+  const [savingNews, setSavingNews] = useState(false);
   const [savingAbout, setSavingAbout] = useState(false);
   const [savingHome, setSavingHome] = useState(false);
 
@@ -88,12 +105,14 @@ function AdminDashboard() {
     const unsubCustomers = subscribeCustomers(setCustomers);
     const unsubAbout = subscribeAbout(setAbout);
     const unsubHome = subscribeHomeContent(setHome);
+    const unsubNews = subscribeNews(setNews);
     return () => {
       unsubProducts();
       unsubOrders();
       unsubCustomers();
       unsubAbout();
       unsubHome();
+      unsubNews();
     };
   }, [isLoggedIn]);
 
@@ -110,6 +129,11 @@ function AdminDashboard() {
   const resetProductForm = () => {
     setEditingProductId(null);
     setProductForm(EMPTY_PRODUCT);
+  };
+
+  const resetNewsForm = () => {
+    setEditingNewsId(null);
+    setNewsForm(EMPTY_NEWS);
   };
 
   const onLogin = (e: React.FormEvent<HTMLFormElement>) => {
@@ -198,6 +222,50 @@ function AdminDashboard() {
       toast.success(product.hidden ? "Product is now visible." : "Product hidden from storefront.");
     } catch {
       toast.error("Unable to update product visibility.");
+    }
+  };
+
+  const onSaveNews = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSavingNews(true);
+    try {
+      const newsToSave = {
+        ...newsForm,
+        id: newsForm.id.trim(),
+        title: newsForm.title.trim(),
+        message: newsForm.message.trim(),
+        placement: newsForm.placement,
+        sortOrder: Number(newsForm.sortOrder) || 0,
+      };
+      if (!newsToSave.title || !newsToSave.message) {
+        toast.error("News title and message are required.");
+        return;
+      }
+      await saveNews(newsToSave);
+      toast.success(editingNewsId ? "News updated." : "News added.");
+      resetNewsForm();
+    } catch {
+      toast.error("Unable to save news.");
+    } finally {
+      setSavingNews(false);
+    }
+  };
+
+  const onEditNews = (newsItem: NewsItem) => {
+    setEditingNewsId(newsItem.id);
+    setNewsForm(newsItem);
+  };
+
+  const onDeleteNews = async (newsId: string) => {
+    if (!confirm("Delete this news item?")) return;
+    try {
+      await deleteNews(newsId);
+      toast.success("News deleted.");
+      if (editingNewsId === newsId) {
+        resetNewsForm();
+      }
+    } catch {
+      toast.error("Unable to delete news.");
     }
   };
 
@@ -303,7 +371,7 @@ function AdminDashboard() {
           <section className="rounded-2xl border border-border/60 bg-card p-6 shadow-[var(--shadow-soft)]">
             <h2 className="font-display text-3xl text-foreground">Live orders</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              New orders appear here automatically as soon as checkout is submitted.
+              Revenue increases when an order status becomes fulfilled.
             </p>
             <div className="mt-5 overflow-x-auto">
               <table className="w-full min-w-[980px] text-left text-sm">
@@ -608,6 +676,135 @@ function AdminDashboard() {
             </div>
 
             <div className="space-y-10">
+              <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-[var(--shadow-soft)]">
+                <h2 className="font-display text-3xl text-foreground">News</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Add, edit, delete, and place announcements on different homepage sections.
+                </p>
+                <form onSubmit={onSaveNews} className="mt-5 space-y-3">
+                  <Field
+                    label="News ID (optional)"
+                    value={newsForm.id}
+                    onChange={(value) => setNewsForm((prev) => ({ ...prev, id: value }))}
+                  />
+                  <Field
+                    label="Title"
+                    value={newsForm.title}
+                    onChange={(value) => setNewsForm((prev) => ({ ...prev, title: value }))}
+                  />
+                  <label className="block">
+                    <span className="mb-2 block text-xs uppercase tracking-widest text-muted-foreground">
+                      Message
+                    </span>
+                    <textarea
+                      value={newsForm.message}
+                      onChange={(event) =>
+                        setNewsForm((prev) => ({ ...prev, message: event.target.value }))
+                      }
+                      rows={3}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-2 block text-xs uppercase tracking-widest text-muted-foreground">
+                      Placement
+                    </span>
+                    <select
+                      value={newsForm.placement}
+                      onChange={(event) =>
+                        setNewsForm((prev) => ({
+                          ...prev,
+                          placement: event.target.value as NewsPlacement,
+                        }))
+                      }
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                    >
+                      <option value="hero">Hero</option>
+                      <option value="menu">Menu</option>
+                      <option value="about">About</option>
+                      <option value="contact">Contact</option>
+                    </select>
+                  </label>
+                  <Field
+                    label="Sort order"
+                    type="number"
+                    value={String(newsForm.sortOrder)}
+                    onChange={(value) =>
+                      setNewsForm((prev) => ({ ...prev, sortOrder: Number(value) || 0 }))
+                    }
+                  />
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      disabled={savingNews}
+                      type="submit"
+                      className="rounded-full bg-primary px-6 py-2 text-sm font-medium text-primary-foreground transition-all hover:opacity-90 disabled:opacity-60"
+                    >
+                      {savingNews ? "Saving…" : editingNewsId ? "Update news" : "Add news"}
+                    </button>
+                    {editingNewsId && (
+                      <button
+                        type="button"
+                        onClick={resetNewsForm}
+                        className="rounded-full border border-foreground/20 px-6 py-2 text-sm font-medium text-foreground transition-all hover:bg-foreground hover:text-background"
+                      >
+                        Cancel edit
+                      </button>
+                    )}
+                  </div>
+                </form>
+                <div className="mt-6 overflow-x-auto">
+                  <table className="w-full min-w-[680px] text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-border/60 text-muted-foreground">
+                        <th className="pb-3 pr-4 font-medium">Title</th>
+                        <th className="pb-3 pr-4 font-medium">Placement</th>
+                        <th className="pb-3 pr-4 font-medium">Order</th>
+                        <th className="pb-3 font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {news.map((item) => (
+                        <tr key={item.id} className="border-b border-border/50">
+                          <td className="py-3 pr-4">
+                            <p className="font-medium text-foreground">{item.title}</p>
+                            <p className="line-clamp-2 text-xs text-muted-foreground">
+                              {item.message}
+                            </p>
+                          </td>
+                          <td className="py-3 pr-4 text-xs uppercase tracking-widest text-muted-foreground">
+                            {item.placement}
+                          </td>
+                          <td className="py-3 pr-4 text-foreground">{item.sortOrder}</td>
+                          <td className="py-3">
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => onEditNews(item)}
+                                className="rounded-md border border-border px-3 py-1 text-xs hover:bg-secondary"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => onDeleteNews(item.id)}
+                                className="rounded-md border border-destructive/40 px-3 py-1 text-xs text-destructive hover:bg-destructive/10"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {news.length === 0 && (
+                    <p className="py-6 text-center text-sm text-muted-foreground">
+                      No news items yet.
+                    </p>
+                  )}
+                </div>
+              </div>
+
               <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-[var(--shadow-soft)]">
                 <h2 className="font-display text-3xl text-foreground">Hero and values</h2>
                 <p className="mt-2 text-sm text-muted-foreground">

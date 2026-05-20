@@ -38,6 +38,16 @@ export type HomeContent = {
   values: HomeValue[];
 };
 
+export type NewsPlacement = "hero" | "menu" | "about" | "contact";
+
+export type NewsItem = {
+  id: string;
+  title: string;
+  message: string;
+  placement: NewsPlacement;
+  sortOrder: number;
+};
+
 export const DEFAULT_PRODUCTS: Product[] = [];
 
 export const DEFAULT_ABOUT_CONTENT: AboutContent = {
