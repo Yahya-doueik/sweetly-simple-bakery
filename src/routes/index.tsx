@@ -20,6 +20,8 @@ export const Route = createFileRoute("/")({
   component: Home,
 });
 
+const WHATSAPP_NUMBER = "96170914486";
+
 function Home() {
   const location = useLocation();
   const heroRef = useRef<HTMLDivElement>(null);
@@ -183,20 +185,34 @@ function Home() {
         </Reveal>
         <Reveal delay={0.1}>
           <form
-            onSubmit={(e) => { e.preventDefault(); alert("Thanks — we'll be in touch within a day."); }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              const name = formData.get("name")?.toString().trim() ?? "";
+              const email = formData.get("email")?.toString().trim() ?? "";
+              const message = formData.get("message")?.toString().trim() ?? "";
+              const whatsappMessage = [
+                "Hello, I'd like to place a custom order.",
+                "",
+                `Name: ${name}`,
+                `Email: ${email}`,
+                `Custom order details: ${message}`,
+              ].join("\n");
+              window.location.assign(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappMessage)}`);
+            }}
             className="space-y-5 rounded-2xl bg-card p-8 shadow-[var(--shadow-soft)]"
           >
             <div>
               <label htmlFor="name" className="mb-2 block text-sm font-medium text-foreground">Name</label>
-              <input id="name" required className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent" />
+              <input id="name" name="name" required className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent" />
             </div>
             <div>
               <label htmlFor="email" className="mb-2 block text-sm font-medium text-foreground">Email</label>
-              <input id="email" type="email" required className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent" />
+              <input id="email" name="email" type="email" required className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent" />
             </div>
             <div>
               <label htmlFor="msg" className="mb-2 block text-sm font-medium text-foreground">What can we make for you?</label>
-              <textarea id="msg" rows={5} required className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent" />
+              <textarea id="msg" name="message" rows={5} required className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent" />
             </div>
             <button type="submit" className="w-full rounded-full bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:opacity-90">
               Send message

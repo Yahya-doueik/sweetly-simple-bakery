@@ -1,4 +1,5 @@
 import { ShoppingBag } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { useCart } from "@/lib/cart";
 
 function scrollTo(id: string) {
@@ -11,18 +12,11 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-        <a
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            window.scrollTo({ top: 0, behavior: "smooth" });
-          }}
-          className="flex items-center gap-2"
-        >
+        <Link to="/" className="flex items-center gap-2">
           <span className="font-display text-2xl tracking-tight text-foreground">
-            Lazy <span className="italic text-accent">Cake</span>
+            Cake <span className="italic text-accent">It Easy</span>
           </span>
-        </a>
+        </Link>
         <nav className="hidden items-center gap-8 text-sm font-medium md:flex">
           <a
             href="#menu"
