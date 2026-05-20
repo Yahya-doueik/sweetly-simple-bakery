@@ -1,13 +1,23 @@
 import { createFileRoute, useLocation } from "@tanstack/react-router";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import heroImg from "@/assets/hero-cake.jpg";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { CakeCard } from "@/components/CakeCard";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/Reveal";
-import { cakes } from "@/data/cakes";
 import { WHATSAPP_NUMBER } from "@/lib/constants";
+import {
+  bootstrapStoreData,
+  subscribeAbout,
+  subscribeProducts,
+} from "@/lib/firebase-store";
+import {
+  DEFAULT_ABOUT_CONTENT,
+  DEFAULT_PRODUCTS,
+  type AboutContent,
+  type Product,
+} from "@/lib/store-data";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -35,6 +45,8 @@ function sanitizeForWhatsApp(value: FormDataEntryValue | null, maxLength: number
 function Home() {
   const location = useLocation();
   const heroRef = useRef<HTMLDivElement>(null);
+  const [products, setProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
+  const [about, setAbout] = useState<AboutContent>(DEFAULT_ABOUT_CONTENT);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 80]);
   const heroScale = useTransform(scrollYProgress, [0, 1], [1, 1.08]);
@@ -48,6 +60,16 @@ function Home() {
       }
     }
   }, [location.hash]);
+
+  useEffect(() => {
+    bootstrapStoreData().catch(() => undefined);
+    const unsubProducts = subscribeProducts(setProducts);
+    const unsubAbout = subscribeAbout(setAbout);
+    return () => {
+      unsubProducts();
+      unsubAbout();
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -137,7 +159,7 @@ function Home() {
           </p>
         </Reveal>
         <StaggerGroup className="mt-14 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {cakes.map((c) => (
+          {products.map((c) => (
             <CakeCard key={c.id} cake={c} />
           ))}
         </StaggerGroup>
@@ -146,27 +168,15 @@ function Home() {
       {/* About */}
       <section id="about" className="mx-auto max-w-3xl px-6 py-20 scroll-mt-20">
         <Reveal>
-          <p className="text-sm uppercase tracking-[0.25em] text-accent">Our Story</p>
-          <h2 className="mt-3 font-display text-5xl text-foreground md:text-6xl">A kitchen without an oven.</h2>
+          <p className="text-sm uppercase tracking-[0.25em] text-accent">{about.subtitle}</p>
+          <h2 className="mt-3 font-display text-5xl text-foreground md:text-6xl">{about.heading}</h2>
         </Reveal>
         <div className="mt-10 space-y-6 text-lg leading-relaxed text-muted-foreground">
-          <Reveal delay={0.05}>
-            <p>
-              Lazy Cake started in 2021 in a tiny flat with a broken oven and a craving for chocolate. The first batch was an
-              accident: melted butter, dark chocolate, biscuits crushed by hand, set overnight in the fridge.
-            </p>
-          </Reveal>
-          <Reveal delay={0.1}>
-            <p>
-              Friends asked for more. Then their friends. Today we make four cakes — slowly, in small batches, from a
-              small kitchen on Linden Lane.
-            </p>
-          </Reveal>
-          <Reveal delay={0.15}>
-            <p>
-              We use 70% Belgian chocolate, French butter, and biscuits we'd happily eat on their own. Nothing else.
-            </p>
-          </Reveal>
+          {about.paragraphs.map((paragraph, index) => (
+            <Reveal key={paragraph} delay={0.05 + index * 0.05}>
+              <p>{paragraph}</p>
+            </Reveal>
+          ))}
         </div>
       </section>
 

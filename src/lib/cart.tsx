@@ -7,8 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { Cake } from "@/data/cakes";
-import { cakes } from "@/data/cakes";
+import type { Product as Cake } from "@/lib/store-data";
 
 export type CartItem = { cake: Cake; quantity: number };
 
@@ -27,7 +26,6 @@ type CartContextValue = {
 
 const CartContext = createContext<CartContextValue | null>(null);
 const STORAGE_KEY = "lazycake.cart.v1";
-const cakesById = new Map(cakes.map((cake) => [cake.id, cake]));
 
 function sanitizeCartItems(raw: unknown): CartItem[] {
   if (!Array.isArray(raw)) return [];
@@ -35,12 +33,41 @@ function sanitizeCartItems(raw: unknown): CartItem[] {
   return raw
     .map((item) => {
       if (!item || typeof item !== "object") return null;
-      const record = item as { cake?: { id?: unknown }; quantity?: unknown };
-      const cakeId = typeof record.cake?.id === "string" ? record.cake.id : "";
+      const record = item as {
+        cake?: {
+          id?: unknown;
+          name?: unknown;
+          tagline?: unknown;
+          description?: unknown;
+          price?: unknown;
+          image?: unknown;
+          tag?: unknown;
+        };
+        quantity?: unknown;
+      };
       const quantity = typeof record.quantity === "number" ? Math.floor(record.quantity) : 0;
-      const cake = cakesById.get(cakeId);
-
-      if (!cake || quantity <= 0) return null;
+      const cakeData = record.cake;
+      if (
+        !cakeData ||
+        typeof cakeData.id !== "string" ||
+        typeof cakeData.name !== "string" ||
+        typeof cakeData.tagline !== "string" ||
+        typeof cakeData.description !== "string" ||
+        typeof cakeData.price !== "number" ||
+        typeof cakeData.image !== "string"
+      ) {
+        return null;
+      }
+      if (quantity <= 0) return null;
+      const cake: Cake = {
+        id: cakeData.id,
+        name: cakeData.name,
+        tagline: cakeData.tagline,
+        description: cakeData.description,
+        price: cakeData.price,
+        image: cakeData.image,
+        tag: typeof cakeData.tag === "string" ? cakeData.tag : undefined,
+      };
       return { cake, quantity };
     })
     .filter((item): item is CartItem => item !== null);
