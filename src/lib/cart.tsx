@@ -66,7 +66,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
     } catch {
-      void 0;
+      return;
     }
   }, [items, hydrated]);
 
