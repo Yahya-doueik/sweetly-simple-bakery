@@ -1,11 +1,9 @@
 import { initializeApp, getApps } from "firebase/app";
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
   getDoc,
-  getDocs,
   getFirestore,
   increment,
   onSnapshot,
@@ -15,14 +13,14 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
-  writeBatch,
   type Firestore,
   type Timestamp,
 } from "firebase/firestore";
 import {
   DEFAULT_ABOUT_CONTENT,
-  DEFAULT_PRODUCTS,
+  DEFAULT_HOME_CONTENT,
   type AboutContent,
+  type HomeContent,
   type Product,
 } from "@/lib/store-data";
 
@@ -45,7 +43,6 @@ type PersistOrderInput = {
     address: string;
     city: string;
     zip: string;
-    country: string;
     notes: string;
   };
   items: Array<{
@@ -67,13 +64,14 @@ export type OrderRecord = {
   subtotal: number;
   shipping: number;
   total: number;
-  status: "new" | "confirmed" | "fulfilled";
+  status: "new" | "confirmed" | "fulfilled" | "cancelled";
   createdAt: string | null;
 };
 
 export type CustomerRecord = PersistOrderInput["customer"] & {
   id: string;
   key: string;
+  country?: string;
   firstOrderAt: string | null;
   lastOrderAt: string | null;
   ordersCount: number;
@@ -99,44 +97,36 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-function normalizeProduct(
-  raw: unknown,
-  fallback: Product | undefined,
-  fallbackId: string,
-): Product | null {
+function normalizeProduct(raw: unknown): Product | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const data = raw as Partial<Product>;
 
-  const id =
-    typeof data.id === "string" && data.id.trim().length > 0
-      ? data.id.trim()
-      : (fallback?.id ?? fallbackId);
-  const name =
-    typeof data.name === "string" && data.name.trim().length > 0
-      ? data.name.trim()
-      : (fallback?.name ?? "");
+  const id = typeof data.id === "string" && data.id.trim().length > 0 ? data.id.trim() : "";
+  const name = typeof data.name === "string" && data.name.trim().length > 0 ? data.name.trim() : "";
   const tagline =
-    typeof data.tagline === "string" && data.tagline.trim().length > 0
-      ? data.tagline.trim()
-      : (fallback?.tagline ?? "");
+    typeof data.tagline === "string" && data.tagline.trim().length > 0 ? data.tagline.trim() : "";
   const description =
     typeof data.description === "string" && data.description.trim().length > 0
       ? data.description.trim()
-      : (fallback?.description ?? "");
+      : "";
   const image =
-    typeof data.image === "string" && data.image.trim().length > 0
-      ? data.image.trim()
-      : (fallback?.image ?? "");
+    typeof data.image === "string" && data.image.trim().length > 0 ? data.image.trim() : "";
   const price =
     typeof data.price === "number" && Number.isFinite(data.price)
       ? data.price
       : Number.isFinite(Number(data.price))
         ? Number(data.price)
-        : (fallback?.price ?? 0);
+        : 0;
   const tag =
-    typeof data.tag === "string" && data.tag.trim().length > 0 ? data.tag.trim() : fallback?.tag;
+    typeof data.tag === "string" && data.tag.trim().length > 0 ? data.tag.trim() : undefined;
+  const images = Array.isArray(data.images)
+    ? data.images.map((item) => `${item}`.trim()).filter(Boolean)
+    : image
+      ? [image]
+      : [];
+  const hidden = data.hidden === true;
 
-  if (!id || !name || !image) return null;
+  if (!id || !name || images.length === 0) return null;
 
   return {
     id,
@@ -144,8 +134,73 @@ function normalizeProduct(
     tagline,
     description,
     price,
-    image,
+    image: images[0],
+    images,
     tag,
+    hidden,
+  };
+}
+
+function normalizeHomeContent(raw: unknown): HomeContent {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return DEFAULT_HOME_CONTENT;
+  }
+  const data = raw as Partial<HomeContent>;
+  const heroData =
+    data.hero && typeof data.hero === "object" && !Array.isArray(data.hero) ? data.hero : undefined;
+  const values = Array.isArray(data.values)
+    ? data.values
+        .map((item) => {
+          if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+          const value = `${(item as { value?: unknown }).value ?? ""}`.trim();
+          const label = `${(item as { label?: unknown }).label ?? ""}`.trim();
+          if (!value || !label) return null;
+          return { value, label };
+        })
+        .filter((item): item is { value: string; label: string } => item !== null)
+    : [];
+
+  return {
+    hero: {
+      eyebrow:
+        typeof heroData?.eyebrow === "string" && heroData.eyebrow.trim().length > 0
+          ? heroData.eyebrow.trim()
+          : DEFAULT_HOME_CONTENT.hero.eyebrow,
+      headingPrefix:
+        typeof heroData?.headingPrefix === "string" && heroData.headingPrefix.trim().length > 0
+          ? heroData.headingPrefix.trim()
+          : DEFAULT_HOME_CONTENT.hero.headingPrefix,
+      headingEmphasis:
+        typeof heroData?.headingEmphasis === "string" && heroData.headingEmphasis.trim().length > 0
+          ? heroData.headingEmphasis.trim()
+          : DEFAULT_HOME_CONTENT.hero.headingEmphasis,
+      headingSuffix:
+        typeof heroData?.headingSuffix === "string" && heroData.headingSuffix.trim().length > 0
+          ? heroData.headingSuffix.trim()
+          : DEFAULT_HOME_CONTENT.hero.headingSuffix,
+      description:
+        typeof heroData?.description === "string" && heroData.description.trim().length > 0
+          ? heroData.description.trim()
+          : DEFAULT_HOME_CONTENT.hero.description,
+      primaryCtaLabel:
+        typeof heroData?.primaryCtaLabel === "string" && heroData.primaryCtaLabel.trim().length > 0
+          ? heroData.primaryCtaLabel.trim()
+          : DEFAULT_HOME_CONTENT.hero.primaryCtaLabel,
+      secondaryCtaLabel:
+        typeof heroData?.secondaryCtaLabel === "string" &&
+        heroData.secondaryCtaLabel.trim().length > 0
+          ? heroData.secondaryCtaLabel.trim()
+          : DEFAULT_HOME_CONTENT.hero.secondaryCtaLabel,
+      image:
+        typeof heroData?.image === "string" && heroData.image.trim().length > 0
+          ? heroData.image.trim()
+          : DEFAULT_HOME_CONTENT.hero.image,
+      imageAlt:
+        typeof heroData?.imageAlt === "string" && heroData.imageAlt.trim().length > 0
+          ? heroData.imageAlt.trim()
+          : DEFAULT_HOME_CONTENT.hero.imageAlt,
+    },
+    values: values.length > 0 ? values : DEFAULT_HOME_CONTENT.values,
   };
 }
 
@@ -159,46 +214,31 @@ export async function bootstrapStoreData() {
   const db = getDb();
   if (!db) return;
 
-  const productCollection = collection(db, "products");
-  const productSnapshot = await getDocs(productCollection);
-
-  if (productSnapshot.empty) {
-    const batch = writeBatch(db);
-    for (const product of DEFAULT_PRODUCTS) {
-      batch.set(doc(productCollection, product.id), product);
-    }
-    await batch.commit();
-  }
-
   const aboutRef = doc(db, "content", "about");
+  const homeRef = doc(db, "content", "home");
   const aboutSnapshot = await getDoc(aboutRef);
+  const homeSnapshot = await getDoc(homeRef);
   if (!aboutSnapshot.exists()) {
     await setDoc(aboutRef, DEFAULT_ABOUT_CONTENT);
   }
+  if (!homeSnapshot.exists()) {
+    await setDoc(homeRef, DEFAULT_HOME_CONTENT);
+  }
 }
 
-export function subscribeProducts(onData: (products: Product[]) => void) {
+export function subscribeProducts(
+  onData: (products: Product[]) => void,
+  options?: { includeHidden?: boolean },
+) {
   const db = getDb();
   if (!db) return () => {};
   const q = query(collection(db, "products"), orderBy("name"));
-  const defaultById = new Map(DEFAULT_PRODUCTS.map((product) => [product.id, product]));
   return onSnapshot(q, (snapshot) => {
-    const firebaseProducts = snapshot.docs
-      .map((record) => normalizeProduct(record.data(), defaultById.get(record.id), record.id))
+    const products = snapshot.docs
+      .map((record) => normalizeProduct({ id: record.id, ...record.data() }))
       .filter((product): product is Product => product !== null);
 
-    if (firebaseProducts.length === 0) {
-      onData(DEFAULT_PRODUCTS);
-      return;
-    }
-
-    const firebaseById = new Map(firebaseProducts.map((product) => [product.id, product]));
-    const products = [
-      ...DEFAULT_PRODUCTS.map((product) => firebaseById.get(product.id) ?? product),
-      ...firebaseProducts.filter((product) => !defaultById.has(product.id)),
-    ];
-
-    onData(products);
+    onData(options?.includeHidden ? products : products.filter((product) => !product.hidden));
   });
 }
 
@@ -222,6 +262,18 @@ export function subscribeAbout(onData: (about: AboutContent) => void) {
   });
 }
 
+export function subscribeHomeContent(onData: (content: HomeContent) => void) {
+  const db = getDb();
+  if (!db) return () => {};
+  return onSnapshot(doc(db, "content", "home"), (snapshot) => {
+    if (!snapshot.exists()) {
+      onData(DEFAULT_HOME_CONTENT);
+      return;
+    }
+    onData(normalizeHomeContent(snapshot.data()));
+  });
+}
+
 export function subscribeOrders(onData: (orders: OrderRecord[]) => void) {
   const db = getDb();
   if (!db) return () => {};
@@ -240,7 +292,6 @@ export function subscribeOrders(onData: (orders: OrderRecord[]) => void) {
           address: `${data.customer?.address ?? ""}`,
           city: `${data.customer?.city ?? ""}`,
           zip: `${data.customer?.zip ?? ""}`,
-          country: `${data.customer?.country ?? ""}`,
           notes: `${data.customer?.notes ?? ""}`,
         },
         items: Array.isArray(data.items)
@@ -254,7 +305,10 @@ export function subscribeOrders(onData: (orders: OrderRecord[]) => void) {
         subtotal: Number(data.subtotal ?? 0),
         shipping: Number(data.shipping ?? 0),
         total: Number(data.total ?? 0),
-        status: data.status === "confirmed" || data.status === "fulfilled" ? data.status : "new",
+        status:
+          data.status === "confirmed" || data.status === "fulfilled" || data.status === "cancelled"
+            ? data.status
+            : "new",
         createdAt: timestampToIso(data.createdAt),
       } satisfies OrderRecord;
     });
@@ -279,7 +333,10 @@ export function subscribeCustomers(onData: (customers: CustomerRecord[]) => void
         address: `${data.address ?? ""}`,
         city: `${data.city ?? ""}`,
         zip: `${data.zip ?? ""}`,
-        country: `${data.country ?? ""}`,
+        country:
+          typeof data.country === "string" && data.country.trim().length > 0
+            ? data.country.trim()
+            : undefined,
         notes: `${data.notes ?? ""}`,
         ordersCount: Number(data.ordersCount ?? 0),
         firstOrderAt: timestampToIso(data.firstOrderAt),
@@ -294,7 +351,18 @@ export async function saveProduct(product: Product) {
   const db = getDb();
   if (!db) return;
   const id = product.id || slugify(product.name);
-  await setDoc(doc(db, "products", id), { ...product, id });
+  const images = Array.isArray(product.images)
+    ? product.images.map((item) => item.trim()).filter(Boolean)
+    : [];
+  const primaryImage = product.image.trim();
+  const allImages = [...new Set([primaryImage, ...images])].filter(Boolean);
+  await setDoc(doc(db, "products", id), {
+    ...product,
+    id,
+    image: allImages[0] ?? "",
+    images: allImages,
+    hidden: product.hidden === true,
+  });
 }
 
 export async function deleteProduct(id: string) {
@@ -309,10 +377,34 @@ export async function saveAbout(about: AboutContent) {
   await setDoc(doc(db, "content", "about"), about);
 }
 
+export async function saveHomeContent(content: HomeContent) {
+  const db = getDb();
+  if (!db) return;
+  await setDoc(doc(db, "content", "home"), content);
+}
+
 export async function updateOrderStatus(orderId: string, status: OrderRecord["status"]) {
   const db = getDb();
   if (!db) return;
   await updateDoc(doc(db, "orders", orderId), { status });
+}
+
+export async function deleteOrder(orderId: string) {
+  const db = getDb();
+  if (!db) return;
+  await deleteDoc(doc(db, "orders", orderId));
+}
+
+export async function deleteCustomer(customerId: string) {
+  const db = getDb();
+  if (!db) return;
+  await deleteDoc(doc(db, "customers", customerId));
+}
+
+export async function toggleProductHidden(productId: string, hidden: boolean) {
+  const db = getDb();
+  if (!db) return;
+  await updateDoc(doc(db, "products", productId), { hidden });
 }
 
 export async function persistOrder(input: PersistOrderInput) {

@@ -5,21 +5,27 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import {
   bootstrapStoreData,
+  deleteCustomer,
+  deleteOrder,
   deleteProduct,
   saveAbout,
+  saveHomeContent,
   saveProduct,
   subscribeAbout,
   subscribeCustomers,
+  subscribeHomeContent,
   subscribeOrders,
   subscribeProducts,
+  toggleProductHidden,
   updateOrderStatus,
   type CustomerRecord,
   type OrderRecord,
 } from "@/lib/firebase-store";
 import {
   DEFAULT_ABOUT_CONTENT,
-  DEFAULT_PRODUCTS,
+  DEFAULT_HOME_CONTENT,
   type AboutContent,
+  type HomeContent,
   type Product,
 } from "@/lib/store-data";
 
@@ -38,7 +44,9 @@ const EMPTY_PRODUCT: Product = {
   description: "",
   price: 0,
   image: "",
+  images: [],
   tag: "",
+  hidden: false,
 };
 
 function formatDate(date: string | null) {
@@ -55,15 +63,17 @@ function AdminDashboard() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  const [products, setProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
+  const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [customers, setCustomers] = useState<CustomerRecord[]>([]);
   const [about, setAbout] = useState<AboutContent>(DEFAULT_ABOUT_CONTENT);
+  const [home, setHome] = useState<HomeContent>(DEFAULT_HOME_CONTENT);
 
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [productForm, setProductForm] = useState<Product>(EMPTY_PRODUCT);
   const [savingProduct, setSavingProduct] = useState(false);
   const [savingAbout, setSavingAbout] = useState(false);
+  const [savingHome, setSavingHome] = useState(false);
 
   useEffect(() => {
     const isAuthed = localStorage.getItem(ADMIN_SESSION_KEY) === "true";
@@ -73,15 +83,17 @@ function AdminDashboard() {
   useEffect(() => {
     if (!isLoggedIn) return;
     bootstrapStoreData().catch(() => undefined);
-    const unsubProducts = subscribeProducts(setProducts);
+    const unsubProducts = subscribeProducts(setProducts, { includeHidden: true });
     const unsubOrders = subscribeOrders(setOrders);
     const unsubCustomers = subscribeCustomers(setCustomers);
     const unsubAbout = subscribeAbout(setAbout);
+    const unsubHome = subscribeHomeContent(setHome);
     return () => {
       unsubProducts();
       unsubOrders();
       unsubCustomers();
       unsubAbout();
+      unsubHome();
     };
   }, [isLoggedIn]);
 
@@ -130,10 +142,21 @@ function AdminDashboard() {
         tagline: productForm.tagline.trim(),
         description: productForm.description.trim(),
         image: productForm.image.trim(),
+        images:
+          productForm.images
+            ?.map((item) => item.trim())
+            .filter(Boolean)
+            .filter((item, index, arr) => arr.indexOf(item) === index) ?? [],
         tag: productForm.tag?.trim() || undefined,
+        hidden: productForm.hidden === true,
       };
-      if (!productToSave.id || !productToSave.name || !productToSave.image) {
-        toast.error("Product id, name, and image URL are required.");
+      if (
+        !productToSave.id ||
+        !productToSave.name ||
+        !productToSave.image ||
+        productToSave.price <= 0
+      ) {
+        toast.error("Product id, name, image URL, and price are required.");
         return;
       }
       await saveProduct(productToSave);
@@ -150,7 +173,9 @@ function AdminDashboard() {
     setEditingProductId(product.id);
     setProductForm({
       ...product,
+      images: product.images ?? [product.image],
       tag: product.tag ?? "",
+      hidden: product.hidden === true,
     });
   };
 
@@ -164,6 +189,15 @@ function AdminDashboard() {
       }
     } catch {
       toast.error("Unable to delete product.");
+    }
+  };
+
+  const onToggleProductHidden = async (product: Product) => {
+    try {
+      await toggleProductHidden(product.id, !product.hidden);
+      toast.success(product.hidden ? "Product is now visible." : "Product hidden from storefront.");
+    } catch {
+      toast.error("Unable to update product visibility.");
     }
   };
 
@@ -181,6 +215,35 @@ function AdminDashboard() {
       toast.error("Unable to update about content.");
     } finally {
       setSavingAbout(false);
+    }
+  };
+
+  const onSaveHome = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSavingHome(true);
+    try {
+      await saveHomeContent({
+        hero: {
+          eyebrow: home.hero.eyebrow.trim(),
+          headingPrefix: home.hero.headingPrefix.trim(),
+          headingEmphasis: home.hero.headingEmphasis.trim(),
+          headingSuffix: home.hero.headingSuffix.trim(),
+          description: home.hero.description.trim(),
+          primaryCtaLabel: home.hero.primaryCtaLabel.trim(),
+          secondaryCtaLabel: home.hero.secondaryCtaLabel.trim(),
+          image: home.hero.image.trim(),
+          imageAlt: home.hero.imageAlt.trim(),
+        },
+        values: home.values.map((item) => ({
+          value: item.value.trim(),
+          label: item.label.trim(),
+        })),
+      });
+      toast.success("Hero and values updated.");
+    } catch {
+      toast.error("Unable to update hero and values.");
+    } finally {
+      setSavingHome(false);
     }
   };
 
@@ -252,6 +315,7 @@ function AdminDashboard() {
                     <th className="pb-3 pr-4 font-medium">Total</th>
                     <th className="pb-3 pr-4 font-medium">Status</th>
                     <th className="pb-3 font-medium">Notes</th>
+                    <th className="pb-3 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -294,10 +358,28 @@ function AdminDashboard() {
                           <option value="new">New</option>
                           <option value="confirmed">Confirmed</option>
                           <option value="fulfilled">Fulfilled</option>
+                          <option value="cancelled">Cancelled</option>
                         </select>
                       </td>
                       <td className="py-3 text-xs text-muted-foreground">
                         {order.customer.notes || "—"}
+                      </td>
+                      <td className="py-3">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!confirm("Delete this order permanently?")) return;
+                            try {
+                              await deleteOrder(order.id);
+                              toast.success("Order deleted.");
+                            } catch {
+                              toast.error("Unable to delete order.");
+                            }
+                          }}
+                          className="rounded-md border border-destructive/40 px-3 py-1 text-xs text-destructive hover:bg-destructive/10"
+                        >
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -323,6 +405,7 @@ function AdminDashboard() {
                     <th className="pb-3 pr-4 font-medium">Address</th>
                     <th className="pb-3 pr-4 font-medium">Orders</th>
                     <th className="pb-3 font-medium">Last order</th>
+                    <th className="pb-3 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -336,11 +419,28 @@ function AdminDashboard() {
                         <p className="text-xs text-muted-foreground">{customer.phone}</p>
                       </td>
                       <td className="py-3 pr-4 text-xs text-muted-foreground">
-                        {customer.address}, {customer.city}, {customer.zip}, {customer.country}
+                        {customer.address}, {customer.city}, {customer.zip}
                       </td>
                       <td className="py-3 pr-4 text-foreground">{customer.ordersCount}</td>
                       <td className="py-3 text-xs text-muted-foreground">
                         {formatDate(customer.lastOrderAt)}
+                      </td>
+                      <td className="py-3">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!confirm("Delete this customer profile?")) return;
+                            try {
+                              await deleteCustomer(customer.id);
+                              toast.success("Customer deleted.");
+                            } catch {
+                              toast.error("Unable to delete customer.");
+                            }
+                          }}
+                          className="rounded-md border border-destructive/40 px-3 py-1 text-xs text-destructive hover:bg-destructive/10"
+                        >
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -384,6 +484,25 @@ function AdminDashboard() {
                   value={productForm.image}
                   onChange={(value) => setProductForm((prev) => ({ ...prev, image: value }))}
                 />
+                <label className="block">
+                  <span className="mb-2 block text-xs uppercase tracking-widest text-muted-foreground">
+                    Gallery images (one URL per line)
+                  </span>
+                  <textarea
+                    value={(productForm.images ?? [productForm.image]).join("\n")}
+                    onChange={(event) =>
+                      setProductForm((prev) => {
+                        const images = event.target.value
+                          .split("\n")
+                          .map((item) => item.trim())
+                          .filter(Boolean);
+                        return { ...prev, images, image: images[0] ?? "" };
+                      })
+                    }
+                    rows={4}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                  />
+                </label>
                 <Field
                   label="Price"
                   type="number"
@@ -397,6 +516,17 @@ function AdminDashboard() {
                   value={productForm.tag ?? ""}
                   onChange={(value) => setProductForm((prev) => ({ ...prev, tag: value }))}
                 />
+                <label className="inline-flex items-center gap-2 text-sm text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={productForm.hidden === true}
+                    onChange={(event) =>
+                      setProductForm((prev) => ({ ...prev, hidden: event.target.checked }))
+                    }
+                    className="h-4 w-4 rounded border-input"
+                  />
+                  Hidden from storefront
+                </label>
                 <div className="mt-2 flex flex-wrap gap-3">
                   <button
                     disabled={savingProduct}
@@ -427,6 +557,7 @@ function AdminDashboard() {
                       <th className="pb-3 pr-4 font-medium">Product</th>
                       <th className="pb-3 pr-4 font-medium">Price</th>
                       <th className="pb-3 pr-4 font-medium">Tag</th>
+                      <th className="pb-3 pr-4 font-medium">Visibility</th>
                       <th className="pb-3 font-medium">Actions</th>
                     </tr>
                   </thead>
@@ -441,15 +572,27 @@ function AdminDashboard() {
                         <td className="py-3 pr-4 text-xs text-muted-foreground">
                           {product.tag || "—"}
                         </td>
+                        <td className="py-3 pr-4 text-xs text-muted-foreground">
+                          {product.hidden ? "Hidden" : "Visible"}
+                        </td>
                         <td className="py-3">
                           <div className="flex gap-2">
                             <button
+                              type="button"
                               onClick={() => onEditProduct(product)}
                               className="rounded-md border border-border px-3 py-1 text-xs hover:bg-secondary"
                             >
                               Edit
                             </button>
                             <button
+                              type="button"
+                              onClick={() => onToggleProductHidden(product)}
+                              className="rounded-md border border-border px-3 py-1 text-xs hover:bg-secondary"
+                            >
+                              {product.hidden ? "Unhide" : "Hide"}
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => onDeleteProduct(product.id)}
                               className="rounded-md border border-destructive/40 px-3 py-1 text-xs text-destructive hover:bg-destructive/10"
                             >
@@ -464,50 +607,177 @@ function AdminDashboard() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-[var(--shadow-soft)]">
-              <h2 className="font-display text-3xl text-foreground">About content</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Edit the homepage About section text.
-              </p>
-              <form onSubmit={onSaveAbout} className="mt-5 space-y-3">
-                <Field
-                  label="Subtitle"
-                  value={about.subtitle}
-                  onChange={(value) => setAbout((prev) => ({ ...prev, subtitle: value }))}
-                />
-                <Field
-                  label="Heading"
-                  value={about.heading}
-                  onChange={(value) => setAbout((prev) => ({ ...prev, heading: value }))}
-                />
-                {about.paragraphs.map((paragraph, index) => (
-                  <label key={`about-${index}`} className="block">
+            <div className="space-y-10">
+              <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-[var(--shadow-soft)]">
+                <h2 className="font-display text-3xl text-foreground">Hero and values</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Edit the full hero section and value stats shown on the homepage.
+                </p>
+                <form onSubmit={onSaveHome} className="mt-5 space-y-3">
+                  <Field
+                    label="Hero eyebrow"
+                    value={home.hero.eyebrow}
+                    onChange={(value) =>
+                      setHome((prev) => ({ ...prev, hero: { ...prev.hero, eyebrow: value } }))
+                    }
+                  />
+                  <Field
+                    label="Hero heading prefix"
+                    value={home.hero.headingPrefix}
+                    onChange={(value) =>
+                      setHome((prev) => ({ ...prev, hero: { ...prev.hero, headingPrefix: value } }))
+                    }
+                  />
+                  <Field
+                    label="Hero heading emphasis"
+                    value={home.hero.headingEmphasis}
+                    onChange={(value) =>
+                      setHome((prev) => ({
+                        ...prev,
+                        hero: { ...prev.hero, headingEmphasis: value },
+                      }))
+                    }
+                  />
+                  <Field
+                    label="Hero heading suffix"
+                    value={home.hero.headingSuffix}
+                    onChange={(value) =>
+                      setHome((prev) => ({ ...prev, hero: { ...prev.hero, headingSuffix: value } }))
+                    }
+                  />
+                  <label className="block">
                     <span className="mb-2 block text-xs uppercase tracking-widest text-muted-foreground">
-                      Paragraph {index + 1}
+                      Hero description
                     </span>
                     <textarea
-                      value={paragraph}
+                      value={home.hero.description}
                       onChange={(event) =>
-                        setAbout((prev) => ({
+                        setHome((prev) => ({
                           ...prev,
-                          paragraphs: prev.paragraphs.map((item, itemIndex) =>
-                            itemIndex === index ? event.target.value : item,
-                          ),
+                          hero: { ...prev.hero, description: event.target.value },
                         }))
                       }
-                      rows={4}
+                      rows={3}
                       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
                     />
                   </label>
-                ))}
-                <button
-                  disabled={savingAbout}
-                  type="submit"
-                  className="w-full rounded-full bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:opacity-90 disabled:opacity-60"
-                >
-                  {savingAbout ? "Saving…" : "Save About section"}
-                </button>
-              </form>
+                  <Field
+                    label="Primary button label"
+                    value={home.hero.primaryCtaLabel}
+                    onChange={(value) =>
+                      setHome((prev) => ({
+                        ...prev,
+                        hero: { ...prev.hero, primaryCtaLabel: value },
+                      }))
+                    }
+                  />
+                  <Field
+                    label="Secondary button label"
+                    value={home.hero.secondaryCtaLabel}
+                    onChange={(value) =>
+                      setHome((prev) => ({
+                        ...prev,
+                        hero: { ...prev.hero, secondaryCtaLabel: value },
+                      }))
+                    }
+                  />
+                  <Field
+                    label="Hero image URL (optional)"
+                    value={home.hero.image}
+                    onChange={(value) =>
+                      setHome((prev) => ({ ...prev, hero: { ...prev.hero, image: value } }))
+                    }
+                  />
+                  <Field
+                    label="Hero image alt text"
+                    value={home.hero.imageAlt}
+                    onChange={(value) =>
+                      setHome((prev) => ({ ...prev, hero: { ...prev.hero, imageAlt: value } }))
+                    }
+                  />
+                  {home.values.map((item, index) => (
+                    <div key={`value-${index}`} className="grid gap-3 md:grid-cols-2">
+                      <Field
+                        label={`Value ${index + 1}`}
+                        value={item.value}
+                        onChange={(value) =>
+                          setHome((prev) => ({
+                            ...prev,
+                            values: prev.values.map((entry, entryIndex) =>
+                              entryIndex === index ? { ...entry, value } : entry,
+                            ),
+                          }))
+                        }
+                      />
+                      <Field
+                        label={`Value ${index + 1} label`}
+                        value={item.label}
+                        onChange={(label) =>
+                          setHome((prev) => ({
+                            ...prev,
+                            values: prev.values.map((entry, entryIndex) =>
+                              entryIndex === index ? { ...entry, label } : entry,
+                            ),
+                          }))
+                        }
+                      />
+                    </div>
+                  ))}
+                  <button
+                    disabled={savingHome}
+                    type="submit"
+                    className="w-full rounded-full bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:opacity-90 disabled:opacity-60"
+                  >
+                    {savingHome ? "Saving…" : "Save Hero and values"}
+                  </button>
+                </form>
+              </div>
+
+              <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-[var(--shadow-soft)]">
+                <h2 className="font-display text-3xl text-foreground">About content</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Edit the homepage About section text.
+                </p>
+                <form onSubmit={onSaveAbout} className="mt-5 space-y-3">
+                  <Field
+                    label="Subtitle"
+                    value={about.subtitle}
+                    onChange={(value) => setAbout((prev) => ({ ...prev, subtitle: value }))}
+                  />
+                  <Field
+                    label="Heading"
+                    value={about.heading}
+                    onChange={(value) => setAbout((prev) => ({ ...prev, heading: value }))}
+                  />
+                  {about.paragraphs.map((paragraph, index) => (
+                    <label key={`about-${index}`} className="block">
+                      <span className="mb-2 block text-xs uppercase tracking-widest text-muted-foreground">
+                        Paragraph {index + 1}
+                      </span>
+                      <textarea
+                        value={paragraph}
+                        onChange={(event) =>
+                          setAbout((prev) => ({
+                            ...prev,
+                            paragraphs: prev.paragraphs.map((item, itemIndex) =>
+                              itemIndex === index ? event.target.value : item,
+                            ),
+                          }))
+                        }
+                        rows={4}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                      />
+                    </label>
+                  ))}
+                  <button
+                    disabled={savingAbout}
+                    type="submit"
+                    className="w-full rounded-full bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:opacity-90 disabled:opacity-60"
+                  >
+                    {savingAbout ? "Saving…" : "Save About section"}
+                  </button>
+                </form>
+              </div>
             </div>
           </section>
         </div>
