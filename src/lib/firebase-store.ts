@@ -99,40 +99,42 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-function normalizeProduct(raw: unknown, fallback: Product | undefined, fallbackId: string): Product | null {
+function normalizeProduct(
+  raw: unknown,
+  fallback: Product | undefined,
+  fallbackId: string,
+): Product | null {
   if (!raw || typeof raw !== "object") return null;
   const data = raw as Partial<Product>;
 
   const id =
     typeof data.id === "string" && data.id.trim().length > 0
       ? data.id.trim()
-      : fallback?.id ?? fallbackId;
+      : (fallback?.id ?? fallbackId);
   const name =
     typeof data.name === "string" && data.name.trim().length > 0
       ? data.name.trim()
-      : fallback?.name ?? "";
+      : (fallback?.name ?? "");
   const tagline =
     typeof data.tagline === "string" && data.tagline.trim().length > 0
       ? data.tagline.trim()
-      : fallback?.tagline ?? "";
+      : (fallback?.tagline ?? "");
   const description =
     typeof data.description === "string" && data.description.trim().length > 0
       ? data.description.trim()
-      : fallback?.description ?? "";
+      : (fallback?.description ?? "");
   const image =
     typeof data.image === "string" && data.image.trim().length > 0
       ? data.image.trim()
-      : fallback?.image ?? "";
+      : (fallback?.image ?? "");
   const price =
     typeof data.price === "number" && Number.isFinite(data.price)
       ? data.price
       : Number.isFinite(Number(data.price))
         ? Number(data.price)
-        : fallback?.price ?? 0;
+        : (fallback?.price ?? 0);
   const tag =
-    typeof data.tag === "string" && data.tag.trim().length > 0
-      ? data.tag.trim()
-      : fallback?.tag;
+    typeof data.tag === "string" && data.tag.trim().length > 0 ? data.tag.trim() : fallback?.tag;
 
   if (!id || !name || !image) return null;
 
