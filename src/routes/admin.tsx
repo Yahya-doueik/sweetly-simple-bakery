@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import {
   bootstrapStoreData,
   deleteProduct,
+  getFirebaseConnectionInfo,
   saveAbout,
   saveProduct,
   subscribeAbout,
@@ -64,6 +65,9 @@ function AdminDashboard() {
   const [productForm, setProductForm] = useState<Product>(EMPTY_PRODUCT);
   const [savingProduct, setSavingProduct] = useState(false);
   const [savingAbout, setSavingAbout] = useState(false);
+  const [firebaseError, setFirebaseError] = useState<string | null>(null);
+  const lastFirebaseError = useRef<string | null>(null);
+  const firebaseConnection = useMemo(() => getFirebaseConnectionInfo(), []);
 
   useEffect(() => {
     const isAuthed = localStorage.getItem(ADMIN_SESSION_KEY) === "true";
@@ -72,11 +76,26 @@ function AdminDashboard() {
 
   useEffect(() => {
     if (!isLoggedIn) return;
-    bootstrapStoreData().catch(() => undefined);
-    const unsubProducts = subscribeProducts(setProducts);
-    const unsubOrders = subscribeOrders(setOrders);
-    const unsubCustomers = subscribeCustomers(setCustomers);
-    const unsubAbout = subscribeAbout(setAbout);
+    setFirebaseError(null);
+    lastFirebaseError.current = null;
+    const reportFirebaseError = (message: string) => {
+      setFirebaseError(message);
+      if (lastFirebaseError.current === message) return;
+      lastFirebaseError.current = message;
+      toast.error("Firebase connection issue", {
+        description: message,
+      });
+    };
+
+    bootstrapStoreData().catch((error) => {
+      const message = error instanceof Error ? error.message : "Unable to load Firebase data.";
+      reportFirebaseError(message);
+    });
+
+    const unsubProducts = subscribeProducts(setProducts, reportFirebaseError);
+    const unsubOrders = subscribeOrders(setOrders, reportFirebaseError);
+    const unsubCustomers = subscribeCustomers(setCustomers, reportFirebaseError);
+    const unsubAbout = subscribeAbout(setAbout, reportFirebaseError);
     return () => {
       unsubProducts();
       unsubOrders();
@@ -139,8 +158,10 @@ function AdminDashboard() {
       await saveProduct(productToSave);
       toast.success(editingProductId ? "Product updated." : "Product added.");
       resetProductForm();
-    } catch {
-      toast.error("Unable to save product.");
+    } catch (error) {
+      toast.error("Unable to save product.", {
+        description: error instanceof Error ? error.message : "Please check Firebase setup.",
+      });
     } finally {
       setSavingProduct(false);
     }
@@ -162,8 +183,10 @@ function AdminDashboard() {
       if (editingProductId === productId) {
         resetProductForm();
       }
-    } catch {
-      toast.error("Unable to delete product.");
+    } catch (error) {
+      toast.error("Unable to delete product.", {
+        description: error instanceof Error ? error.message : "Please check Firebase setup.",
+      });
     }
   };
 
@@ -177,8 +200,10 @@ function AdminDashboard() {
         paragraphs: about.paragraphs.map((paragraph) => paragraph.trim()).filter(Boolean),
       });
       toast.success("About content updated.");
-    } catch {
-      toast.error("Unable to update about content.");
+    } catch (error) {
+      toast.error("Unable to update about content.", {
+        description: error instanceof Error ? error.message : "Please check Firebase setup.",
+      });
     } finally {
       setSavingAbout(false);
     }
@@ -238,6 +263,28 @@ function AdminDashboard() {
 
         <div className="mt-10 grid gap-10">
           <section className="rounded-2xl border border-border/60 bg-card p-6 shadow-[var(--shadow-soft)]">
+            <h2 className="font-display text-3xl text-foreground">Firebase connection</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Project <strong>{firebaseConnection.projectId}</strong>, Firestore database{" "}
+              <strong>{firebaseConnection.databaseId}</strong>.
+              {firebaseConnection.usingEnvConfig
+                ? " Using VITE_FIREBASE_* environment variables."
+                : " Using built-in fallback config."}
+            </p>
+            {firebaseError ? (
+              <p className="mt-4 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {firebaseError}
+              </p>
+            ) : (
+              <p className="mt-4 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700">
+                Connected. Changes in Products/About are saved to Firestore collections (
+                <code>products</code>, <code>content/about</code>, <code>orders</code>,{" "}
+                <code>customers</code>).
+              </p>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-border/60 bg-card p-6 shadow-[var(--shadow-soft)]">
             <h2 className="font-display text-3xl text-foreground">Live orders</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               New orders appear here automatically as soon as checkout is submitted.
@@ -285,8 +332,13 @@ function AdminDashboard() {
                             try {
                               await updateOrderStatus(order.id, nextStatus);
                               toast.success("Order status updated.");
-                            } catch {
-                              toast.error("Unable to update order status.");
+                            } catch (error) {
+                              toast.error("Unable to update order status.", {
+                                description:
+                                  error instanceof Error
+                                    ? error.message
+                                    : "Please check Firebase setup.",
+                              });
                             }
                           }}
                           className="rounded-md border border-input bg-background px-2 py-1 text-xs"
