@@ -135,16 +135,18 @@ function Checkout() {
         <Reveal className="max-w-2xl">
           <p className="text-sm uppercase tracking-[0.25em] text-accent">Checkout</p>
           <h1 className="mt-3 font-display text-5xl text-foreground md:text-6xl">Almost yours.</h1>
-          <p className="mt-4 text-muted-foreground">
-            Payment method: cash on delivery.
-          </p>
+          <p className="mt-4 text-muted-foreground">Payment method: cash on delivery.</p>
         </Reveal>
 
         {items.length === 0 ? (
           <Reveal className="mt-16 rounded-2xl border border-border/60 bg-card p-12 text-center">
             <p className="font-display text-3xl text-foreground">Your box is empty.</p>
             <p className="mt-2 text-muted-foreground">Pick a cake or two and come back.</p>
-            <Link to="/menu" className="mt-6 inline-block rounded-full bg-primary px-7 py-3 text-sm font-medium text-primary-foreground">
+            <Link
+              to="/"
+              hash="menu"
+              className="mt-6 inline-block rounded-full bg-primary px-7 py-3 text-sm font-medium text-primary-foreground"
+            >
               Browse the menu
             </Link>
           </Reveal>
@@ -190,19 +192,43 @@ function Checkout() {
                 <ul className="mt-4 divide-y divide-border/60">
                   {items.map(({ cake, quantity }) => (
                     <li key={cake.id} className="flex gap-4 py-4">
-                      <img src={cake.image} alt={cake.name} className="h-16 w-16 flex-shrink-0 rounded-md object-cover" />
+                      <img
+                        src={cake.image}
+                        alt={cake.name}
+                        className="h-16 w-16 flex-shrink-0 rounded-md object-cover"
+                      />
                       <div className="flex flex-1 flex-col">
                         <div className="flex justify-between gap-2">
                           <p className="font-medium text-foreground">{cake.name}</p>
-                          <p className="font-display text-accent">${(cake.price * quantity).toFixed(0)}</p>
+                          <p className="font-display text-accent">
+                            ${(cake.price * quantity).toFixed(0)}
+                          </p>
                         </div>
                         <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
                           <div className="inline-flex items-center gap-2">
-                            <button type="button" onClick={() => setQuantity(cake.id, quantity - 1)} className="rounded-full border border-border px-2 leading-none hover:bg-secondary">−</button>
+                            <button
+                              type="button"
+                              onClick={() => setQuantity(cake.id, quantity - 1)}
+                              className="rounded-full border border-border px-2 leading-none hover:bg-secondary"
+                            >
+                              −
+                            </button>
                             <span className="tabular-nums">{quantity}</span>
-                            <button type="button" onClick={() => setQuantity(cake.id, quantity + 1)} className="rounded-full border border-border px-2 leading-none hover:bg-secondary">+</button>
+                            <button
+                              type="button"
+                              onClick={() => setQuantity(cake.id, quantity + 1)}
+                              className="rounded-full border border-border px-2 leading-none hover:bg-secondary"
+                            >
+                              +
+                            </button>
                           </div>
-                          <button type="button" onClick={() => removeItem(cake.id)} className="underline-offset-4 hover:text-foreground hover:underline">Remove</button>
+                          <button
+                            type="button"
+                            onClick={() => removeItem(cake.id)}
+                            className="underline-offset-4 hover:text-foreground hover:underline"
+                          >
+                            Remove
+                          </button>
                         </div>
                       </div>
                     </li>
@@ -223,7 +249,19 @@ function Checkout() {
   );
 }
 
-function Field({ label, name, type = "text", required, defaultValue }: { label: string; name: string; type?: string; required?: boolean; defaultValue?: string }) {
+function Field({
+  label,
+  name,
+  type = "text",
+  required,
+  defaultValue,
+}: {
+  label: string;
+  name: string;
+  type?: string;
+  required?: boolean;
+  defaultValue?: string;
+}) {
   return (
     <label className="block">
       <span className="text-xs uppercase tracking-widest text-muted-foreground">{label}</span>
@@ -240,7 +278,9 @@ function Field({ label, name, type = "text", required, defaultValue }: { label: 
 
 function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
-    <div className={`flex justify-between ${bold ? "pt-2 text-base font-medium text-foreground" : "text-muted-foreground"}`}>
+    <div
+      className={`flex justify-between ${bold ? "pt-2 text-base font-medium text-foreground" : "text-muted-foreground"}`}
+    >
       <dt>{label}</dt>
       <dd className={bold ? "font-display text-xl text-foreground" : ""}>{value}</dd>
     </div>
