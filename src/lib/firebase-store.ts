@@ -99,6 +99,56 @@ function slugify(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
+function normalizeProduct(
+  raw: unknown,
+  fallback: Product | undefined,
+  fallbackId: string,
+): Product | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const data = raw as Partial<Product>;
+
+  const id =
+    typeof data.id === "string" && data.id.trim().length > 0
+      ? data.id.trim()
+      : (fallback?.id ?? fallbackId);
+  const name =
+    typeof data.name === "string" && data.name.trim().length > 0
+      ? data.name.trim()
+      : (fallback?.name ?? "");
+  const tagline =
+    typeof data.tagline === "string" && data.tagline.trim().length > 0
+      ? data.tagline.trim()
+      : (fallback?.tagline ?? "");
+  const description =
+    typeof data.description === "string" && data.description.trim().length > 0
+      ? data.description.trim()
+      : (fallback?.description ?? "");
+  const image =
+    typeof data.image === "string" && data.image.trim().length > 0
+      ? data.image.trim()
+      : (fallback?.image ?? "");
+  const price =
+    typeof data.price === "number" && Number.isFinite(data.price)
+      ? data.price
+      : Number.isFinite(Number(data.price))
+        ? Number(data.price)
+        : (fallback?.price ?? 0);
+  const tag =
+    typeof data.tag === "string" && data.tag.trim().length > 0 ? data.tag.trim() : fallback?.tag;
+
+  if (!id || !name || !image) return null;
+
+  return {
+    id,
+    name,
+    tagline,
+    description,
+    price,
+    image,
+    tag,
+  };
+}
+
 export function buildCustomerKey(email: string, phone: string) {
   const normalizedEmail = email.trim().toLowerCase();
   const normalizedPhone = phone.replace(/\D/g, "");
@@ -131,12 +181,24 @@ export function subscribeProducts(onData: (products: Product[]) => void) {
   const db = getDb();
   if (!db) return () => {};
   const q = query(collection(db, "products"), orderBy("name"));
+  const defaultById = new Map(DEFAULT_PRODUCTS.map((product) => [product.id, product]));
   return onSnapshot(q, (snapshot) => {
-    const list = snapshot.docs.map((record) => {
-      const data = record.data() as Product;
-      return { ...data, id: record.id };
-    });
-    onData(list.length > 0 ? list : DEFAULT_PRODUCTS);
+    const firebaseProducts = snapshot.docs
+      .map((record) => normalizeProduct(record.data(), defaultById.get(record.id), record.id))
+      .filter((product): product is Product => product !== null);
+
+    if (firebaseProducts.length === 0) {
+      onData(DEFAULT_PRODUCTS);
+      return;
+    }
+
+    const firebaseById = new Map(firebaseProducts.map((product) => [product.id, product]));
+    const products = [
+      ...DEFAULT_PRODUCTS.map((product) => firebaseById.get(product.id) ?? product),
+      ...firebaseProducts.filter((product) => !defaultById.has(product.id)),
+    ];
+
+    onData(products);
   });
 }
 
