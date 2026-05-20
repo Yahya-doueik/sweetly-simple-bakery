@@ -28,7 +28,6 @@ type CustomerDetails = {
   address: string;
   city: string;
   zip: string;
-  country: string;
   notes: string;
 };
 
@@ -40,7 +39,6 @@ const EMPTY_CUSTOMER_DETAILS: CustomerDetails = {
   address: "",
   city: "",
   zip: "",
-  country: "United States",
   notes: "",
 };
 
@@ -53,7 +51,6 @@ function getCustomerDetails(formData: FormData): CustomerDetails {
     address: formData.get("address")?.toString().trim() ?? "",
     city: formData.get("city")?.toString().trim() ?? "",
     zip: formData.get("zip")?.toString().trim() ?? "",
-    country: formData.get("country")?.toString().trim() ?? "",
     notes: formData.get("notes")?.toString().trim() ?? "",
   };
 }
@@ -87,7 +84,6 @@ function buildWhatsAppMessage({
     `Address: ${customer.address}`,
     `City: ${customer.city}`,
     `Postcode: ${customer.zip}`,
-    `Country: ${customer.country}`,
     customer.notes ? `Delivery notes: ${customer.notes}` : null,
   ].filter(Boolean);
 
@@ -231,15 +227,9 @@ function Checkout() {
                     defaultValue={savedCustomer.address}
                     required
                   />
-                  <div className="grid gap-4 md:grid-cols-3">
+                  <div className="grid gap-4 md:grid-cols-2">
                     <Field label="City" name="city" defaultValue={savedCustomer.city} required />
                     <Field label="Postcode" name="zip" defaultValue={savedCustomer.zip} required />
-                    <Field
-                      label="Country"
-                      name="country"
-                      defaultValue={savedCustomer.country}
-                      required
-                    />
                   </div>
                   <Field
                     label="Delivery notes (optional)"

@@ -7,11 +7,17 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { CakeCard } from "@/components/CakeCard";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/Reveal";
 import { WHATSAPP_NUMBER } from "@/lib/constants";
-import { bootstrapStoreData, subscribeAbout, subscribeProducts } from "@/lib/firebase-store";
+import {
+  bootstrapStoreData,
+  subscribeAbout,
+  subscribeHomeContent,
+  subscribeProducts,
+} from "@/lib/firebase-store";
 import {
   DEFAULT_ABOUT_CONTENT,
-  DEFAULT_PRODUCTS,
+  DEFAULT_HOME_CONTENT,
   type AboutContent,
+  type HomeContent,
   type Product,
 } from "@/lib/store-data";
 
@@ -48,8 +54,9 @@ function sanitizeForWhatsApp(value: FormDataEntryValue | null, maxLength: number
 function Home() {
   const location = useLocation();
   const heroRef = useRef<HTMLDivElement>(null);
-  const [products, setProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
+  const [products, setProducts] = useState<Product[]>([]);
   const [about, setAbout] = useState<AboutContent>(DEFAULT_ABOUT_CONTENT);
+  const [home, setHome] = useState<HomeContent>(DEFAULT_HOME_CONTENT);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 80]);
   const heroScale = useTransform(scrollYProgress, [0, 1], [1, 1.08]);
@@ -68,9 +75,11 @@ function Home() {
     bootstrapStoreData().catch(() => undefined);
     const unsubProducts = subscribeProducts(setProducts);
     const unsubAbout = subscribeAbout(setAbout);
+    const unsubHome = subscribeHomeContent(setHome);
     return () => {
       unsubProducts();
       unsubAbout();
+      unsubHome();
     };
   }, []);
 
@@ -88,15 +97,13 @@ function Home() {
             className="relative z-10"
           >
             <p className="mb-4 text-sm uppercase tracking-[0.25em] text-accent">
-              No-bake · Hand-finished
+              {home.hero.eyebrow}
             </p>
             <h1 className="font-display text-5xl leading-[1.05] text-foreground md:text-7xl">
-              Slow cakes for <span className="italic">unhurried</span> days.
+              {home.hero.headingPrefix} <span className="italic">{home.hero.headingEmphasis}</span>{" "}
+              {home.hero.headingSuffix}
             </h1>
-            <p className="mt-6 max-w-md text-lg text-muted-foreground">
-              We fold great chocolate through buttery biscuits and let time do the rest. No oven. No
-              rush. Just dense, fudgy slices.
-            </p>
+            <p className="mt-6 max-w-md text-lg text-muted-foreground">{home.hero.description}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <a
                 href="#menu"
@@ -106,7 +113,7 @@ function Home() {
                 }}
                 className="rounded-full bg-primary px-7 py-3 text-sm font-medium text-primary-foreground shadow-[var(--shadow-soft)] transition-all hover:translate-y-[-2px]"
               >
-                Browse the menu
+                {home.hero.primaryCtaLabel}
               </a>
               <a
                 href="#about"
@@ -116,7 +123,7 @@ function Home() {
                 }}
                 className="rounded-full border border-foreground/20 px-7 py-3 text-sm font-medium text-foreground transition-all hover:bg-foreground hover:text-background"
               >
-                Our story
+                {home.hero.secondaryCtaLabel}
               </a>
             </div>
           </motion.div>
@@ -129,8 +136,8 @@ function Home() {
           >
             <div className="absolute -inset-6 -z-10 rounded-[2rem] bg-[var(--gradient-warm)] blur-2xl opacity-70" />
             <img
-              src={heroImg}
-              alt="Sliced chocolate lazy cake on parchment"
+              src={home.hero.image || heroImg}
+              alt={home.hero.imageAlt}
               width={1600}
               height={1200}
               className="relative aspect-[4/3] w-full rounded-[1.75rem] object-cover shadow-[var(--shadow-soft)]"
@@ -142,14 +149,12 @@ function Home() {
       {/* Marquee values */}
       <section className="border-y border-border/60 bg-secondary/30">
         <StaggerGroup className="mx-auto grid max-w-6xl gap-8 px-6 py-10 text-center md:grid-cols-3">
-          {[
-            ["72hr", "rest before slicing"],
-            ["3", "ingredients you'd recognise"],
-            ["0", "ovens harmed"],
-          ].map(([k, v]) => (
-            <StaggerItem key={k as string}>
-              <p className="font-display text-4xl text-foreground">{k}</p>
-              <p className="mt-1 text-sm uppercase tracking-widest text-muted-foreground">{v}</p>
+          {home.values.map((item) => (
+            <StaggerItem key={`${item.value}-${item.label}`}>
+              <p className="font-display text-4xl text-foreground">{item.value}</p>
+              <p className="mt-1 text-sm uppercase tracking-widest text-muted-foreground">
+                {item.label}
+              </p>
             </StaggerItem>
           ))}
         </StaggerGroup>
