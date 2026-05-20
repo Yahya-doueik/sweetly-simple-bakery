@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Reveal } from "@/components/Reveal";
 import { useCart } from "@/lib/cart";
+import { WHATSAPP_NUMBER } from "@/lib/constants";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -18,8 +19,6 @@ export const Route = createFileRoute("/checkout")({
 
 const SHIPPING_FLAT = 8;
 const CUSTOMER_STORAGE_KEY = "lazycake.checkout.customer.v1";
-const WHATSAPP_NUMBER = "96170914486";
-
 type CustomerDetails = {
   email: string;
   phone: string;

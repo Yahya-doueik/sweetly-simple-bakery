@@ -7,6 +7,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { CakeCard } from "@/components/CakeCard";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/Reveal";
 import { cakes } from "@/data/cakes";
+import { WHATSAPP_NUMBER } from "@/lib/constants";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -20,7 +21,16 @@ export const Route = createFileRoute("/")({
   component: Home,
 });
 
-const WHATSAPP_NUMBER = "96170914486";
+const MAX_NAME_LENGTH = 80;
+const MAX_EMAIL_LENGTH = 120;
+const MAX_MESSAGE_LENGTH = 800;
+
+function sanitizeForWhatsApp(value: FormDataEntryValue | null, maxLength: number) {
+  return (value?.toString().trim() ?? "")
+    .replace(/\r?\n/g, " ")
+    .replace(/[\u0000-\u001F\u007F]/g, "")
+    .slice(0, maxLength);
+}
 
 function Home() {
   const location = useLocation();
@@ -188,9 +198,9 @@ function Home() {
             onSubmit={(e) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
-              const name = formData.get("name")?.toString().trim() ?? "";
-              const email = formData.get("email")?.toString().trim() ?? "";
-              const message = formData.get("message")?.toString().trim() ?? "";
+              const name = sanitizeForWhatsApp(formData.get("name"), MAX_NAME_LENGTH);
+              const email = sanitizeForWhatsApp(formData.get("email"), MAX_EMAIL_LENGTH);
+              const message = sanitizeForWhatsApp(formData.get("message"), MAX_MESSAGE_LENGTH);
               const whatsappMessage = [
                 "Hello, I'd like to place a custom order.",
                 "",
@@ -198,21 +208,22 @@ function Home() {
                 `Email: ${email}`,
                 `Custom order details: ${message}`,
               ].join("\n");
+              e.currentTarget.reset();
               window.location.assign(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappMessage)}`);
             }}
             className="space-y-5 rounded-2xl bg-card p-8 shadow-[var(--shadow-soft)]"
           >
             <div>
               <label htmlFor="name" className="mb-2 block text-sm font-medium text-foreground">Name</label>
-              <input id="name" name="name" required className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent" />
+              <input id="name" name="name" maxLength={MAX_NAME_LENGTH} required className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent" />
             </div>
             <div>
               <label htmlFor="email" className="mb-2 block text-sm font-medium text-foreground">Email</label>
-              <input id="email" name="email" type="email" required className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent" />
+              <input id="email" name="email" type="email" maxLength={MAX_EMAIL_LENGTH} required className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent" />
             </div>
             <div>
               <label htmlFor="msg" className="mb-2 block text-sm font-medium text-foreground">What can we make for you?</label>
-              <textarea id="msg" name="message" rows={5} required className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent" />
+              <textarea id="msg" name="message" rows={5} maxLength={MAX_MESSAGE_LENGTH} required className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent" />
             </div>
             <button type="submit" className="w-full rounded-full bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:opacity-90">
               Send message
