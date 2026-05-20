@@ -21,6 +21,8 @@ import {
   DEFAULT_HOME_CONTENT,
   type AboutContent,
   type HomeContent,
+  type NewsItem,
+  type NewsPlacement,
   type Product,
 } from "@/lib/store-data";
 
@@ -204,6 +206,40 @@ function normalizeHomeContent(raw: unknown): HomeContent {
   };
 }
 
+function normalizeNewsPlacement(value: unknown): NewsPlacement {
+  if (value === "menu" || value === "about" || value === "contact") {
+    return value;
+  }
+  return "hero";
+}
+
+function normalizeNews(raw: unknown): NewsItem | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const data = raw as Partial<NewsItem>;
+
+  const id = typeof data.id === "string" && data.id.trim().length > 0 ? data.id.trim() : "";
+  const title =
+    typeof data.title === "string" && data.title.trim().length > 0 ? data.title.trim() : "";
+  const message =
+    typeof data.message === "string" && data.message.trim().length > 0 ? data.message.trim() : "";
+  const sortOrder =
+    typeof data.sortOrder === "number" && Number.isFinite(data.sortOrder)
+      ? data.sortOrder
+      : Number.isFinite(Number(data.sortOrder))
+        ? Number(data.sortOrder)
+        : 0;
+
+  if (!id || !title || !message) return null;
+
+  return {
+    id,
+    title,
+    message,
+    placement: normalizeNewsPlacement(data.placement),
+    sortOrder,
+  };
+}
+
 export function buildCustomerKey(email: string, phone: string) {
   const normalizedEmail = email.trim().toLowerCase();
   const normalizedPhone = phone.replace(/\D/g, "");
@@ -271,6 +307,26 @@ export function subscribeHomeContent(onData: (content: HomeContent) => void) {
       return;
     }
     onData(normalizeHomeContent(snapshot.data()));
+  });
+}
+
+export function subscribeNews(onData: (news: NewsItem[]) => void) {
+  const db = getDb();
+  if (!db) return () => {};
+  return onSnapshot(collection(db, "news"), (snapshot) => {
+    const news = snapshot.docs
+      .map((record) => normalizeNews({ id: record.id, ...record.data() }))
+      .filter((item): item is NewsItem => item !== null)
+      .sort((a, b) => {
+        if (a.placement === b.placement) {
+          if (a.sortOrder === b.sortOrder) {
+            return a.title.localeCompare(b.title);
+          }
+          return a.sortOrder - b.sortOrder;
+        }
+        return a.placement.localeCompare(b.placement);
+      });
+    onData(news);
   });
 }
 
@@ -381,6 +437,26 @@ export async function saveHomeContent(content: HomeContent) {
   const db = getDb();
   if (!db) return;
   await setDoc(doc(db, "content", "home"), content);
+}
+
+export async function saveNews(newsItem: NewsItem) {
+  const db = getDb();
+  if (!db) return;
+  const id = newsItem.id || slugify(newsItem.title);
+  await setDoc(doc(db, "news", id), {
+    ...newsItem,
+    id,
+    title: newsItem.title.trim(),
+    message: newsItem.message.trim(),
+    placement: normalizeNewsPlacement(newsItem.placement),
+    sortOrder: Number.isFinite(newsItem.sortOrder) ? newsItem.sortOrder : 0,
+  });
+}
+
+export async function deleteNews(newsId: string) {
+  const db = getDb();
+  if (!db) return;
+  await deleteDoc(doc(db, "news", newsId));
 }
 
 export async function updateOrderStatus(orderId: string, status: OrderRecord["status"]) {

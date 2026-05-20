@@ -11,6 +11,7 @@ import {
   bootstrapStoreData,
   subscribeAbout,
   subscribeHomeContent,
+  subscribeNews,
   subscribeProducts,
 } from "@/lib/firebase-store";
 import {
@@ -18,6 +19,8 @@ import {
   DEFAULT_HOME_CONTENT,
   type AboutContent,
   type HomeContent,
+  type NewsItem,
+  type NewsPlacement,
   type Product,
 } from "@/lib/store-data";
 
@@ -57,6 +60,7 @@ function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [about, setAbout] = useState<AboutContent>(DEFAULT_ABOUT_CONTENT);
   const [home, setHome] = useState<HomeContent>(DEFAULT_HOME_CONTENT);
+  const [news, setNews] = useState<NewsItem[]>([]);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 80]);
   const heroScale = useTransform(scrollYProgress, [0, 1], [1, 1.08]);
@@ -76,12 +80,17 @@ function Home() {
     const unsubProducts = subscribeProducts(setProducts);
     const unsubAbout = subscribeAbout(setAbout);
     const unsubHome = subscribeHomeContent(setHome);
+    const unsubNews = subscribeNews(setNews);
     return () => {
       unsubProducts();
       unsubAbout();
       unsubHome();
+      unsubNews();
     };
   }, []);
+
+  const getNewsForPlacement = (placement: NewsPlacement) =>
+    news.filter((item) => item.placement === placement);
 
   return (
     <div className="min-h-screen bg-background">
@@ -146,6 +155,8 @@ function Home() {
         </div>
       </section>
 
+      <NewsSection items={getNewsForPlacement("hero")} />
+
       {/* Marquee values */}
       <section className="border-y border-border/60 bg-secondary/30">
         <StaggerGroup className="mx-auto grid max-w-6xl gap-8 px-6 py-10 text-center md:grid-cols-3">
@@ -161,6 +172,7 @@ function Home() {
       </section>
 
       {/* Menu */}
+      <NewsSection items={getNewsForPlacement("menu")} />
       <section id="menu" className="mx-auto max-w-6xl px-6 py-20 scroll-mt-20">
         <Reveal className="max-w-2xl">
           <p className="text-sm uppercase tracking-[0.25em] text-accent">The Menu</p>
@@ -180,6 +192,7 @@ function Home() {
       </section>
 
       {/* About */}
+      <NewsSection items={getNewsForPlacement("about")} />
       <section id="about" className="mx-auto max-w-3xl px-6 py-20 scroll-mt-20">
         <Reveal>
           <p className="text-sm uppercase tracking-[0.25em] text-accent">{about.subtitle}</p>
@@ -197,6 +210,7 @@ function Home() {
       </section>
 
       {/* Contact */}
+      <NewsSection items={getNewsForPlacement("contact")} />
       <section
         id="contact"
         className="mx-auto grid max-w-5xl gap-16 px-6 py-20 md:grid-cols-2 md:py-28 scroll-mt-20"
@@ -298,5 +312,25 @@ function Home() {
 
       <SiteFooter />
     </div>
+  );
+}
+
+function NewsSection({ items }: { items: NewsItem[] }) {
+  if (items.length === 0) return null;
+
+  return (
+    <section className="mx-auto max-w-6xl px-6 py-6">
+      <div className="rounded-2xl border border-accent/30 bg-card p-6 shadow-[var(--shadow-soft)]">
+        <p className="text-xs uppercase tracking-[0.25em] text-accent">News</p>
+        <div className="mt-3 space-y-4">
+          {items.map((item) => (
+            <article key={item.id}>
+              <h3 className="font-medium text-foreground">{item.title}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{item.message}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
