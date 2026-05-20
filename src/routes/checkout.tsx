@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Reveal } from "@/components/Reveal";
 import { useCart } from "@/lib/cart";
+import { WHATSAPP_NUMBER } from "@/lib/constants";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -18,8 +19,6 @@ export const Route = createFileRoute("/checkout")({
 
 const SHIPPING_FLAT = 8;
 const CUSTOMER_STORAGE_KEY = "lazycake.checkout.customer.v1";
-const WHATSAPP_NUMBER = "96170914486";
-
 type CustomerDetails = {
   email: string;
   phone: string;
@@ -137,7 +136,7 @@ function Checkout() {
           <p className="text-sm uppercase tracking-[0.25em] text-accent">Checkout</p>
           <h1 className="mt-3 font-display text-5xl text-foreground md:text-6xl">Almost yours.</h1>
           <p className="mt-4 text-muted-foreground">
-            Payments aren't wired up yet — placing an order will simulate confirmation so you can preview the flow.
+            Payment method: cash on delivery.
           </p>
         </Reveal>
 
@@ -180,7 +179,7 @@ function Checkout() {
                   {submitting ? "Placing order…" : `Place order — $${total.toFixed(0)}`}
                 </button>
                 <p className="text-xs text-muted-foreground">
-                  Demo checkout. No charges are made.
+                  Your order is confirmed on WhatsApp and paid in cash on delivery.
                 </p>
               </form>
             </Reveal>
