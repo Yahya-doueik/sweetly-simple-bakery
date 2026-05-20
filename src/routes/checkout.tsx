@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Reveal } from "@/components/Reveal";
 import { useCart } from "@/lib/cart";
 import { WHATSAPP_NUMBER } from "@/lib/constants";
+import { persistOrder } from "@/lib/firebase-store";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -29,6 +30,18 @@ type CustomerDetails = {
   zip: string;
   country: string;
   notes: string;
+};
+
+const EMPTY_CUSTOMER_DETAILS: CustomerDetails = {
+  email: "",
+  phone: "",
+  firstName: "",
+  lastName: "",
+  address: "",
+  city: "",
+  zip: "",
+  country: "United States",
+  notes: "",
 };
 
 function getCustomerDetails(formData: FormData): CustomerDetails {
@@ -94,10 +107,22 @@ function buildWhatsAppMessage({
 }
 
 function Checkout() {
-  const { items, subtotal, setQuantity, removeItem } = useCart();
+  const { items, subtotal, setQuantity, removeItem, clear } = useCart();
   const [submitting, setSubmitting] = useState(false);
+  const [savedCustomer, setSavedCustomer] = useState<CustomerDetails>(EMPTY_CUSTOMER_DETAILS);
   const shipping = items.length === 0 ? 0 : SHIPPING_FLAT;
   const total = subtotal + shipping;
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(CUSTOMER_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<CustomerDetails>;
+      setSavedCustomer((prev) => ({ ...prev, ...parsed }));
+    } catch {
+      setSavedCustomer(EMPTY_CUSTOMER_DETAILS);
+    }
+  }, []);
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -108,6 +133,18 @@ function Checkout() {
 
     try {
       localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(customer));
+      await persistOrder({
+        customer,
+        items: items.map(({ cake, quantity }) => ({
+          id: cake.id,
+          name: cake.name,
+          price: cake.price,
+          quantity,
+        })),
+        subtotal,
+        shipping,
+        total,
+      });
 
       const message = buildWhatsAppMessage({
         items,
@@ -120,9 +157,10 @@ function Checkout() {
       window.location.assign(
         `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`,
       );
+      clear();
     } catch {
-      toast.error("Unable to start WhatsApp checkout.", {
-        description: "Please try again.",
+      toast.error("Unable to place order.", {
+        description: "Please try again in a moment.",
       });
       setSubmitting(false);
     }
@@ -156,22 +194,58 @@ function Checkout() {
               <form onSubmit={onSubmit} className="space-y-8">
                 <fieldset className="space-y-4">
                   <legend className="font-display text-2xl text-foreground">Contact</legend>
-                  <Field label="Email" name="email" type="email" required />
-                  <Field label="Phone" name="phone" type="tel" required />
+                  <Field
+                    label="Email"
+                    name="email"
+                    type="email"
+                    defaultValue={savedCustomer.email}
+                    required
+                  />
+                  <Field
+                    label="Phone"
+                    name="phone"
+                    type="tel"
+                    defaultValue={savedCustomer.phone}
+                    required
+                  />
                 </fieldset>
                 <fieldset className="space-y-4">
                   <legend className="font-display text-2xl text-foreground">Delivery</legend>
                   <div className="grid gap-4 md:grid-cols-2">
-                    <Field label="First name" name="firstName" required />
-                    <Field label="Last name" name="lastName" required />
+                    <Field
+                      label="First name"
+                      name="firstName"
+                      defaultValue={savedCustomer.firstName}
+                      required
+                    />
+                    <Field
+                      label="Last name"
+                      name="lastName"
+                      defaultValue={savedCustomer.lastName}
+                      required
+                    />
                   </div>
-                  <Field label="Address" name="address" required />
+                  <Field
+                    label="Address"
+                    name="address"
+                    defaultValue={savedCustomer.address}
+                    required
+                  />
                   <div className="grid gap-4 md:grid-cols-3">
-                    <Field label="City" name="city" required />
-                    <Field label="Postcode" name="zip" required />
-                    <Field label="Country" name="country" defaultValue="United States" required />
+                    <Field label="City" name="city" defaultValue={savedCustomer.city} required />
+                    <Field label="Postcode" name="zip" defaultValue={savedCustomer.zip} required />
+                    <Field
+                      label="Country"
+                      name="country"
+                      defaultValue={savedCustomer.country}
+                      required
+                    />
                   </div>
-                  <Field label="Delivery notes (optional)" name="notes" />
+                  <Field
+                    label="Delivery notes (optional)"
+                    name="notes"
+                    defaultValue={savedCustomer.notes}
+                  />
                 </fieldset>
                 <button
                   type="submit"

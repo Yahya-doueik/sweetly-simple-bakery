@@ -1,21 +1,34 @@
 import { createFileRoute, useLocation } from "@tanstack/react-router";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import heroImg from "@/assets/hero-cake.jpg";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { CakeCard } from "@/components/CakeCard";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/Reveal";
-import { cakes } from "@/data/cakes";
 import { WHATSAPP_NUMBER } from "@/lib/constants";
+import { bootstrapStoreData, subscribeAbout, subscribeProducts } from "@/lib/firebase-store";
+import {
+  DEFAULT_ABOUT_CONTENT,
+  DEFAULT_PRODUCTS,
+  type AboutContent,
+  type Product,
+} from "@/lib/store-data";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Lazy Cake — Slow-made no-bake cakes" },
-      { name: "description", content: "Hand-finished no-bake chocolate cakes, made slowly with great ingredients. Order online for pickup or local delivery." },
+      {
+        name: "description",
+        content:
+          "Hand-finished no-bake chocolate cakes, made slowly with great ingredients. Order online for pickup or local delivery.",
+      },
       { property: "og:title", content: "Lazy Cake — Slow-made no-bake cakes" },
-      { property: "og:description", content: "Hand-finished no-bake chocolate cakes from our small kitchen." },
+      {
+        property: "og:description",
+        content: "Hand-finished no-bake chocolate cakes from our small kitchen.",
+      },
     ],
   }),
   component: Home,
@@ -28,13 +41,15 @@ const MAX_MESSAGE_LENGTH = 800;
 function sanitizeForWhatsApp(value: FormDataEntryValue | null, maxLength: number) {
   return (value?.toString().trim() ?? "")
     .replace(/\r?\n/g, " ")
-    .replace(/[\u0000-\u001F\u007F]/g, "")
+    .replace(/\p{Cc}/gu, "")
     .slice(0, maxLength);
 }
 
 function Home() {
   const location = useLocation();
   const heroRef = useRef<HTMLDivElement>(null);
+  const [products, setProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
+  const [about, setAbout] = useState<AboutContent>(DEFAULT_ABOUT_CONTENT);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 80]);
   const heroScale = useTransform(scrollYProgress, [0, 1], [1, 1.08]);
@@ -49,6 +64,16 @@ function Home() {
     }
   }, [location.hash]);
 
+  useEffect(() => {
+    bootstrapStoreData().catch(() => undefined);
+    const unsubProducts = subscribeProducts(setProducts);
+    const unsubAbout = subscribeAbout(setAbout);
+    return () => {
+      unsubProducts();
+      unsubAbout();
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
@@ -62,12 +87,15 @@ function Home() {
             transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
             className="relative z-10"
           >
-            <p className="mb-4 text-sm uppercase tracking-[0.25em] text-accent">No-bake · Hand-finished</p>
+            <p className="mb-4 text-sm uppercase tracking-[0.25em] text-accent">
+              No-bake · Hand-finished
+            </p>
             <h1 className="font-display text-5xl leading-[1.05] text-foreground md:text-7xl">
               Slow cakes for <span className="italic">unhurried</span> days.
             </h1>
             <p className="mt-6 max-w-md text-lg text-muted-foreground">
-              We fold great chocolate through buttery biscuits and let time do the rest. No oven. No rush. Just dense, fudgy slices.
+              We fold great chocolate through buttery biscuits and let time do the rest. No oven. No
+              rush. Just dense, fudgy slices.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <a
@@ -131,13 +159,16 @@ function Home() {
       <section id="menu" className="mx-auto max-w-6xl px-6 py-20 scroll-mt-20">
         <Reveal className="max-w-2xl">
           <p className="text-sm uppercase tracking-[0.25em] text-accent">The Menu</p>
-          <h2 className="mt-3 font-display text-5xl text-foreground md:text-6xl">Pick your slice.</h2>
+          <h2 className="mt-3 font-display text-5xl text-foreground md:text-6xl">
+            Pick your slice.
+          </h2>
           <p className="mt-5 text-lg text-muted-foreground">
-            Each cake is set overnight, sliced cold, and packed in a chilled box. Ships locally Tue–Fri.
+            Each cake is set overnight, sliced cold, and packed in a chilled box. Ships locally
+            Tue–Fri.
           </p>
         </Reveal>
         <StaggerGroup className="mt-14 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {cakes.map((c) => (
+          {products.map((c) => (
             <CakeCard key={c.id} cake={c} />
           ))}
         </StaggerGroup>
@@ -146,37 +177,33 @@ function Home() {
       {/* About */}
       <section id="about" className="mx-auto max-w-3xl px-6 py-20 scroll-mt-20">
         <Reveal>
-          <p className="text-sm uppercase tracking-[0.25em] text-accent">Our Story</p>
-          <h2 className="mt-3 font-display text-5xl text-foreground md:text-6xl">A kitchen without an oven.</h2>
+          <p className="text-sm uppercase tracking-[0.25em] text-accent">{about.subtitle}</p>
+          <h2 className="mt-3 font-display text-5xl text-foreground md:text-6xl">
+            {about.heading}
+          </h2>
         </Reveal>
         <div className="mt-10 space-y-6 text-lg leading-relaxed text-muted-foreground">
-          <Reveal delay={0.05}>
-            <p>
-              Lazy Cake started in 2021 in a tiny flat with a broken oven and a craving for chocolate. The first batch was an
-              accident: melted butter, dark chocolate, biscuits crushed by hand, set overnight in the fridge.
-            </p>
-          </Reveal>
-          <Reveal delay={0.1}>
-            <p>
-              Friends asked for more. Then their friends. Today we make four cakes — slowly, in small batches, from a
-              small kitchen on Linden Lane.
-            </p>
-          </Reveal>
-          <Reveal delay={0.15}>
-            <p>
-              We use 70% Belgian chocolate, French butter, and biscuits we'd happily eat on their own. Nothing else.
-            </p>
-          </Reveal>
+          {about.paragraphs.map((paragraph, index) => (
+            <Reveal key={paragraph} delay={0.05 + index * 0.05}>
+              <p>{paragraph}</p>
+            </Reveal>
+          ))}
         </div>
       </section>
 
       {/* Contact */}
-      <section id="contact" className="mx-auto grid max-w-5xl gap-16 px-6 py-20 md:grid-cols-2 md:py-28 scroll-mt-20">
+      <section
+        id="contact"
+        className="mx-auto grid max-w-5xl gap-16 px-6 py-20 md:grid-cols-2 md:py-28 scroll-mt-20"
+      >
         <Reveal>
           <p className="text-sm uppercase tracking-[0.25em] text-accent">Say hello</p>
-          <h2 className="mt-3 font-display text-5xl text-foreground md:text-6xl">Custom orders & events.</h2>
+          <h2 className="mt-3 font-display text-5xl text-foreground md:text-6xl">
+            Custom orders & events.
+          </h2>
           <p className="mt-6 text-muted-foreground">
-            Birthdays, weddings, dinner parties, or just a Tuesday — tell us what you're dreaming up.
+            Birthdays, weddings, dinner parties, or just a Tuesday — tell us what you're dreaming
+            up.
           </p>
           <dl className="mt-10 space-y-4 text-sm">
             <div>
@@ -210,23 +237,54 @@ function Home() {
               ].join("\n");
               const whatsappNumber = WHATSAPP_NUMBER.replace(/\D/g, "");
               if (!whatsappNumber) return;
-              window.location.assign(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`);
+              window.location.assign(
+                `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`,
+              );
             }}
             className="space-y-5 rounded-2xl bg-card p-8 shadow-[var(--shadow-soft)]"
           >
             <div>
-              <label htmlFor="name" className="mb-2 block text-sm font-medium text-foreground">Name</label>
-              <input id="name" name="name" maxLength={MAX_NAME_LENGTH} required className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent" />
+              <label htmlFor="name" className="mb-2 block text-sm font-medium text-foreground">
+                Name
+              </label>
+              <input
+                id="name"
+                name="name"
+                maxLength={MAX_NAME_LENGTH}
+                required
+                className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent"
+              />
             </div>
             <div>
-              <label htmlFor="email" className="mb-2 block text-sm font-medium text-foreground">Email</label>
-              <input id="email" name="email" type="email" maxLength={MAX_EMAIL_LENGTH} required className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent" />
+              <label htmlFor="email" className="mb-2 block text-sm font-medium text-foreground">
+                Email
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                maxLength={MAX_EMAIL_LENGTH}
+                required
+                className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent"
+              />
             </div>
             <div>
-              <label htmlFor="msg" className="mb-2 block text-sm font-medium text-foreground">What can we make for you?</label>
-              <textarea id="msg" name="message" rows={5} maxLength={MAX_MESSAGE_LENGTH} required className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent" />
+              <label htmlFor="msg" className="mb-2 block text-sm font-medium text-foreground">
+                What can we make for you?
+              </label>
+              <textarea
+                id="msg"
+                name="message"
+                rows={5}
+                maxLength={MAX_MESSAGE_LENGTH}
+                required
+                className="w-full rounded-lg border border-input bg-background px-4 py-3 text-sm outline-none focus:border-accent"
+              />
             </div>
-            <button type="submit" className="w-full rounded-full bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:opacity-90">
+            <button
+              type="submit"
+              className="w-full rounded-full bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:opacity-90"
+            >
               Send message
             </button>
           </form>

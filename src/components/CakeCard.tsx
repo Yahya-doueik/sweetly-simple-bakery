@@ -1,4 +1,4 @@
-import type { Cake } from "@/data/cakes";
+import type { Product as Cake } from "@/lib/store-data";
 import { motion } from "framer-motion";
 import { useCart } from "@/lib/cart";
 import { toast } from "sonner";
