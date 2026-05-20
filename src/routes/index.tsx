@@ -208,7 +208,6 @@ function Home() {
                 `Email: ${email}`,
                 `Custom order details: ${message}`,
               ].join("\n");
-              e.currentTarget.reset();
               window.location.assign(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappMessage)}`);
             }}
             className="space-y-5 rounded-2xl bg-card p-8 shadow-[var(--shadow-soft)]"
