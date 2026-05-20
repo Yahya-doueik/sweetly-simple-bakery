@@ -104,7 +104,7 @@ function normalizeProduct(
   fallback: Product | undefined,
   fallbackId: string,
 ): Product | null {
-  if (!raw || typeof raw !== "object") return null;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const data = raw as Partial<Product>;
 
   const id =
