@@ -13,12 +13,14 @@ import {
   saveHomeContent,
   saveNews,
   saveProduct,
+  saveSiteSettings,
   subscribeAbout,
   subscribeCustomers,
   subscribeHomeContent,
   subscribeNews,
   subscribeOrders,
   subscribeProducts,
+  subscribeSiteSettings,
   toggleProductHidden,
   updateOrderStatus,
   type CustomerRecord,
@@ -27,11 +29,13 @@ import {
 import {
   DEFAULT_ABOUT_CONTENT,
   DEFAULT_HOME_CONTENT,
+  DEFAULT_SITE_SETTINGS,
   type AboutContent,
   type HomeContent,
   type NewsItem,
   type NewsPlacement,
   type Product,
+  type SiteSettings,
 } from "@/lib/store-data";
 
 export const Route = createFileRoute("/admin")({
@@ -82,6 +86,7 @@ function AdminDashboard() {
   const [about, setAbout] = useState<AboutContent>(DEFAULT_ABOUT_CONTENT);
   const [home, setHome] = useState<HomeContent>(DEFAULT_HOME_CONTENT);
   const [news, setNews] = useState<NewsItem[]>([]);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(DEFAULT_SITE_SETTINGS);
 
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [productForm, setProductForm] = useState<Product>(EMPTY_PRODUCT);
@@ -91,6 +96,9 @@ function AdminDashboard() {
   const [savingNews, setSavingNews] = useState(false);
   const [savingAbout, setSavingAbout] = useState(false);
   const [savingHome, setSavingHome] = useState(false);
+  const [savingSiteSettings, setSavingSiteSettings] = useState(false);
+  const [phoneInput, setPhoneInput] = useState("");
+  const [editingPhoneIndex, setEditingPhoneIndex] = useState<number | null>(null);
 
   useEffect(() => {
     const isAuthed = localStorage.getItem(ADMIN_SESSION_KEY) === "true";
@@ -106,6 +114,7 @@ function AdminDashboard() {
     const unsubAbout = subscribeAbout(setAbout);
     const unsubHome = subscribeHomeContent(setHome);
     const unsubNews = subscribeNews(setNews);
+    const unsubSiteSettings = subscribeSiteSettings(setSiteSettings);
     return () => {
       unsubProducts();
       unsubOrders();
@@ -113,6 +122,7 @@ function AdminDashboard() {
       unsubAbout();
       unsubHome();
       unsubNews();
+      unsubSiteSettings();
     };
   }, [isLoggedIn]);
 
@@ -312,6 +322,120 @@ function AdminDashboard() {
       toast.error("Unable to update hero and values.");
     } finally {
       setSavingHome(false);
+    }
+  };
+
+  const onAddOrUpdatePhone = () => {
+    const number = phoneInput.trim();
+    if (!number) {
+      toast.error("Enter a WhatsApp number first.");
+      return;
+    }
+
+    setSiteSettings((prev) => {
+      if (editingPhoneIndex === null) {
+        if (prev.whatsappNumbers.includes(number)) {
+          toast.error("That number is already added.");
+          return prev;
+        }
+        const nextNumbers = [...prev.whatsappNumbers, number];
+        return {
+          ...prev,
+          whatsappNumbers: nextNumbers,
+          defaultWhatsAppNumber: prev.defaultWhatsAppNumber || number,
+        };
+      }
+
+      const duplicateAtDifferentIndex = prev.whatsappNumbers.some(
+        (item, itemIndex) => item === number && itemIndex !== editingPhoneIndex,
+      );
+      if (duplicateAtDifferentIndex) {
+        toast.error("That number is already added.");
+        return prev;
+      }
+
+      const nextNumbers = prev.whatsappNumbers.map((item, itemIndex) =>
+        itemIndex === editingPhoneIndex ? number : item,
+      );
+      const nextDefault =
+        prev.defaultWhatsAppNumber === prev.whatsappNumbers[editingPhoneIndex]
+          ? number
+          : prev.defaultWhatsAppNumber;
+      return {
+        ...prev,
+        whatsappNumbers: nextNumbers,
+        defaultWhatsAppNumber: nextDefault,
+      };
+    });
+
+    setPhoneInput("");
+    setEditingPhoneIndex(null);
+  };
+
+  const onEditPhone = (index: number) => {
+    setEditingPhoneIndex(index);
+    setPhoneInput(siteSettings.whatsappNumbers[index] ?? "");
+  };
+
+  const onDeletePhone = (index: number) => {
+    setSiteSettings((prev) => {
+      const removedNumber = prev.whatsappNumbers[index];
+      const nextNumbers = prev.whatsappNumbers.filter((_, itemIndex) => itemIndex !== index);
+      const nextDefault =
+        prev.defaultWhatsAppNumber === removedNumber
+          ? (nextNumbers[0] ?? "")
+          : prev.defaultWhatsAppNumber;
+      return {
+        ...prev,
+        whatsappNumbers: nextNumbers,
+        defaultWhatsAppNumber: nextDefault,
+      };
+    });
+
+    if (editingPhoneIndex === index) {
+      setEditingPhoneIndex(null);
+      setPhoneInput("");
+    }
+  };
+
+  const onSaveSiteSettings = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (siteSettings.whatsappNumbers.length === 0) {
+      toast.error("Add at least one WhatsApp number.");
+      return;
+    }
+    setSavingSiteSettings(true);
+    try {
+      await saveSiteSettings({
+        ...siteSettings,
+        brandName: siteSettings.brandName.trim(),
+        supportEmail: siteSettings.supportEmail.trim(),
+        whatsappNumbers: siteSettings.whatsappNumbers.map((item) => item.trim()).filter(Boolean),
+        defaultWhatsAppNumber: siteSettings.defaultWhatsAppNumber.trim(),
+        menu: {
+          eyebrow: siteSettings.menu.eyebrow.trim(),
+          heading: siteSettings.menu.heading.trim(),
+          description: siteSettings.menu.description.trim(),
+        },
+        customOrders: {
+          eyebrow: siteSettings.customOrders.eyebrow.trim(),
+          heading: siteSettings.customOrders.heading.trim(),
+          description: siteSettings.customOrders.description.trim(),
+          messageLabel: siteSettings.customOrders.messageLabel.trim(),
+          submitLabel: siteSettings.customOrders.submitLabel.trim(),
+          whatsappIntro: siteSettings.customOrders.whatsappIntro.trim(),
+        },
+        footer: {
+          tagline: siteSettings.footer.tagline.trim(),
+          contactHeading: siteSettings.footer.contactHeading.trim(),
+          copyrightNote: siteSettings.footer.copyrightNote.trim(),
+        },
+      });
+      toast.success("Store text and contact settings updated.");
+    } catch {
+      toast.error("Unable to save store settings.");
+    } finally {
+      setSavingSiteSettings(false);
     }
   };
 
@@ -926,6 +1050,248 @@ function AdminDashboard() {
                     className="w-full rounded-full bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:opacity-90 disabled:opacity-60"
                   >
                     {savingHome ? "Saving…" : "Save Hero and values"}
+                  </button>
+                </form>
+              </div>
+
+              <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-[var(--shadow-soft)]">
+                <h2 className="font-display text-3xl text-foreground">Store text and contact</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Manage branding, WhatsApp routing, and editable text for menu, custom orders, and
+                  footer.
+                </p>
+                <form onSubmit={onSaveSiteSettings} className="mt-5 space-y-4">
+                  <Field
+                    label="Brand name"
+                    value={siteSettings.brandName}
+                    onChange={(value) => setSiteSettings((prev) => ({ ...prev, brandName: value }))}
+                  />
+                  <Field
+                    label="Support email"
+                    type="email"
+                    value={siteSettings.supportEmail}
+                    onChange={(value) =>
+                      setSiteSettings((prev) => ({ ...prev, supportEmail: value }))
+                    }
+                  />
+
+                  <div>
+                    <span className="mb-2 block text-xs uppercase tracking-widest text-muted-foreground">
+                      WhatsApp order numbers
+                    </span>
+                    <div className="flex gap-2">
+                      <input
+                        value={phoneInput}
+                        onChange={(event) => setPhoneInput(event.target.value)}
+                        placeholder="Add number"
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                      />
+                      <button
+                        type="button"
+                        onClick={onAddOrUpdatePhone}
+                        className="rounded-md border border-border px-3 py-2 text-xs hover:bg-secondary"
+                      >
+                        {editingPhoneIndex === null ? "Add" : "Update"}
+                      </button>
+                    </div>
+                    {editingPhoneIndex !== null && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingPhoneIndex(null);
+                          setPhoneInput("");
+                        }}
+                        className="mt-2 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                      >
+                        Cancel number edit
+                      </button>
+                    )}
+                    <div className="mt-3 space-y-2">
+                      {siteSettings.whatsappNumbers.map((number, index) => (
+                        <div
+                          key={`${number}-${index}`}
+                          className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2 text-sm"
+                        >
+                          <label className="inline-flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="default-whatsapp-number"
+                              checked={siteSettings.defaultWhatsAppNumber === number}
+                              onChange={() =>
+                                setSiteSettings((prev) => ({
+                                  ...prev,
+                                  defaultWhatsAppNumber: number,
+                                }))
+                              }
+                              className="h-4 w-4 border-input"
+                            />
+                            <span className="text-foreground">{number}</span>
+                          </label>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => onEditPhone(index)}
+                              className="rounded-md border border-border px-3 py-1 text-xs hover:bg-secondary"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onDeletePhone(index)}
+                              className="rounded-md border border-destructive/40 px-3 py-1 text-xs text-destructive hover:bg-destructive/10"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Field
+                    label="Menu eyebrow"
+                    value={siteSettings.menu.eyebrow}
+                    onChange={(value) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        menu: { ...prev.menu, eyebrow: value },
+                      }))
+                    }
+                  />
+                  <Field
+                    label="Menu heading"
+                    value={siteSettings.menu.heading}
+                    onChange={(value) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        menu: { ...prev.menu, heading: value },
+                      }))
+                    }
+                  />
+                  <label className="block">
+                    <span className="mb-2 block text-xs uppercase tracking-widest text-muted-foreground">
+                      Menu description
+                    </span>
+                    <textarea
+                      value={siteSettings.menu.description}
+                      onChange={(event) =>
+                        setSiteSettings((prev) => ({
+                          ...prev,
+                          menu: { ...prev.menu, description: event.target.value },
+                        }))
+                      }
+                      rows={3}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                    />
+                  </label>
+                  <Field
+                    label="Custom orders eyebrow"
+                    value={siteSettings.customOrders.eyebrow}
+                    onChange={(value) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        customOrders: { ...prev.customOrders, eyebrow: value },
+                      }))
+                    }
+                  />
+                  <Field
+                    label="Custom orders heading"
+                    value={siteSettings.customOrders.heading}
+                    onChange={(value) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        customOrders: { ...prev.customOrders, heading: value },
+                      }))
+                    }
+                  />
+                  <label className="block">
+                    <span className="mb-2 block text-xs uppercase tracking-widest text-muted-foreground">
+                      Custom orders description
+                    </span>
+                    <textarea
+                      value={siteSettings.customOrders.description}
+                      onChange={(event) =>
+                        setSiteSettings((prev) => ({
+                          ...prev,
+                          customOrders: { ...prev.customOrders, description: event.target.value },
+                        }))
+                      }
+                      rows={3}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                    />
+                  </label>
+                  <Field
+                    label="Custom orders message label"
+                    value={siteSettings.customOrders.messageLabel}
+                    onChange={(value) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        customOrders: { ...prev.customOrders, messageLabel: value },
+                      }))
+                    }
+                  />
+                  <Field
+                    label="Custom orders send button label"
+                    value={siteSettings.customOrders.submitLabel}
+                    onChange={(value) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        customOrders: { ...prev.customOrders, submitLabel: value },
+                      }))
+                    }
+                  />
+                  <label className="block">
+                    <span className="mb-2 block text-xs uppercase tracking-widest text-muted-foreground">
+                      WhatsApp intro message
+                    </span>
+                    <textarea
+                      value={siteSettings.customOrders.whatsappIntro}
+                      onChange={(event) =>
+                        setSiteSettings((prev) => ({
+                          ...prev,
+                          customOrders: { ...prev.customOrders, whatsappIntro: event.target.value },
+                        }))
+                      }
+                      rows={2}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
+                    />
+                  </label>
+                  <Field
+                    label="Footer tagline"
+                    value={siteSettings.footer.tagline}
+                    onChange={(value) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        footer: { ...prev.footer, tagline: value },
+                      }))
+                    }
+                  />
+                  <Field
+                    label="Footer contact heading"
+                    value={siteSettings.footer.contactHeading}
+                    onChange={(value) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        footer: { ...prev.footer, contactHeading: value },
+                      }))
+                    }
+                  />
+                  <Field
+                    label="Footer copyright note"
+                    value={siteSettings.footer.copyrightNote}
+                    onChange={(value) =>
+                      setSiteSettings((prev) => ({
+                        ...prev,
+                        footer: { ...prev.footer, copyrightNote: value },
+                      }))
+                    }
+                  />
+                  <button
+                    disabled={savingSiteSettings}
+                    type="submit"
+                    className="w-full rounded-full bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:opacity-90 disabled:opacity-60"
+                  >
+                    {savingSiteSettings ? "Saving…" : "Save store text and contacts"}
                   </button>
                 </form>
               </div>
