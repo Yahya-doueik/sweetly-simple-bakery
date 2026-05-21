@@ -27,6 +27,7 @@ import {
   type Product,
   type SiteSettings,
 } from "@/lib/store-data";
+import { normalizeDiscountPercent } from "@/lib/pricing";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBKBZ9K82WFNNperWHhw4YReVdTjrIJM0g",
@@ -123,12 +124,17 @@ function normalizeProduct(raw: unknown): Product | null {
         : 0;
   const tag =
     typeof data.tag === "string" && data.tag.trim().length > 0 ? data.tag.trim() : undefined;
+  const saleLabel =
+    typeof data.saleLabel === "string" && data.saleLabel.trim().length > 0
+      ? data.saleLabel.trim()
+      : undefined;
   const images = Array.isArray(data.images)
     ? data.images.map((item) => `${item}`.trim()).filter(Boolean)
     : image
       ? [image]
       : [];
   const hidden = data.hidden === true;
+  const discountPercent = normalizeDiscountPercent(data.discountPercent);
 
   if (!id || !name || images.length === 0) return null;
 
@@ -138,6 +144,8 @@ function normalizeProduct(raw: unknown): Product | null {
     tagline,
     description,
     price,
+    discountPercent,
+    saleLabel,
     image: images[0],
     images,
     tag,
@@ -530,6 +538,8 @@ export async function saveProduct(product: Product) {
     id,
     image: allImages[0] ?? "",
     images: allImages,
+    discountPercent: normalizeDiscountPercent(product.discountPercent),
+    saleLabel: product.saleLabel?.trim() || undefined,
     hidden: product.hidden === true,
   });
 }
