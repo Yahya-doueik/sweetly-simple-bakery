@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Product as Cake } from "@/lib/store-data";
+import { getProductUnitPrice, normalizeDiscountPercent } from "@/lib/pricing";
 
 export type CartItem = { cake: Cake; quantity: number };
 
@@ -41,7 +42,10 @@ function sanitizeCartItems(raw: unknown): CartItem[] {
           description?: unknown;
           price?: unknown;
           image?: unknown;
+          images?: unknown;
           tag?: unknown;
+          discountPercent?: unknown;
+          saleLabel?: unknown;
         };
         quantity?: unknown;
       };
@@ -66,7 +70,12 @@ function sanitizeCartItems(raw: unknown): CartItem[] {
         description: cakeData.description,
         price: cakeData.price,
         image: cakeData.image,
+        images: Array.isArray(cakeData.images)
+          ? cakeData.images.map((item) => `${item}`.trim()).filter(Boolean)
+          : undefined,
         tag: typeof cakeData.tag === "string" ? cakeData.tag : undefined,
+        discountPercent: normalizeDiscountPercent(cakeData.discountPercent),
+        saleLabel: typeof cakeData.saleLabel === "string" ? cakeData.saleLabel : undefined,
       };
       return { cake, quantity };
     })
@@ -126,7 +135,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     () => ({
       items,
       count: items.reduce((n, i) => n + i.quantity, 0),
-      subtotal: items.reduce((n, i) => n + i.quantity * i.cake.price, 0),
+      subtotal: items.reduce((n, i) => n + i.quantity * getProductUnitPrice(i.cake), 0),
       isOpen,
       openCart: () => setOpen(true),
       closeCart: () => setOpen(false),

@@ -7,6 +7,7 @@ import { Reveal } from "@/components/Reveal";
 import { useCart } from "@/lib/cart";
 import { persistOrder, subscribeSiteSettings } from "@/lib/firebase-store";
 import { DEFAULT_SITE_SETTINGS } from "@/lib/store-data";
+import { getProductUnitPrice, normalizeDiscountPercent } from "@/lib/pricing";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -74,10 +75,10 @@ function buildWhatsAppMessage({
   total: number;
   customer: CustomerDetails;
 }) {
-  const orderLines = items.map(
-    ({ cake, quantity }) =>
-      `- ${cake.name} x${quantity} @ ${formatPrice(cake.price)} = ${formatPrice(cake.price * quantity)}`,
-  );
+  const orderLines = items.map(({ cake, quantity }) => {
+    const unitPrice = getProductUnitPrice(cake);
+    return `- ${cake.name} x${quantity} @ ${formatPrice(unitPrice)} = ${formatPrice(unitPrice * quantity)}`;
+  });
 
   const customerLines = [
     `Name: ${customer.firstName} ${customer.lastName}`.trim(),
@@ -142,7 +143,7 @@ function Checkout() {
         items: items.map(({ cake, quantity }) => ({
           id: cake.id,
           name: cake.name,
-          price: cake.price,
+          price: getProductUnitPrice(cake),
           quantity,
         })),
         subtotal,
@@ -275,45 +276,60 @@ function Checkout() {
                 <ul className="mt-4 divide-y divide-border/60">
                   {items.map(({ cake, quantity }) => (
                     <li key={cake.id} className="flex gap-4 py-4">
-                      <img
-                        src={cake.image}
-                        alt={cake.name}
-                        className="h-16 w-16 flex-shrink-0 rounded-md object-cover"
-                      />
-                      <div className="flex flex-1 flex-col">
-                        <div className="flex justify-between gap-2">
-                          <p className="font-medium text-foreground">{cake.name}</p>
-                          <p className="font-display text-accent">
-                            ${(cake.price * quantity).toFixed(0)}
-                          </p>
-                        </div>
-                        <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
-                          <div className="inline-flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setQuantity(cake.id, quantity - 1)}
-                              className="rounded-full border border-border px-2 leading-none hover:bg-secondary"
-                            >
-                              −
-                            </button>
-                            <span className="tabular-nums">{quantity}</span>
-                            <button
-                              type="button"
-                              onClick={() => setQuantity(cake.id, quantity + 1)}
-                              className="rounded-full border border-border px-2 leading-none hover:bg-secondary"
-                            >
-                              +
-                            </button>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeItem(cake.id)}
-                            className="underline-offset-4 hover:text-foreground hover:underline"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </div>
+                      {(() => {
+                        const unitPrice = getProductUnitPrice(cake);
+                        const discountPercent = normalizeDiscountPercent(cake.discountPercent);
+                        return (
+                          <>
+                            <img
+                              src={cake.image}
+                              alt={cake.name}
+                              className="h-16 w-16 flex-shrink-0 rounded-md object-cover"
+                            />
+                            <div className="flex flex-1 flex-col">
+                              <div className="flex justify-between gap-2">
+                                <p className="font-medium text-foreground">{cake.name}</p>
+                                <div className="text-right">
+                                  <p className="font-display text-accent">
+                                    ${(unitPrice * quantity).toFixed(0)}
+                                  </p>
+                                  {discountPercent && (
+                                    <p className="text-xs text-muted-foreground line-through">
+                                      ${(cake.price * quantity).toFixed(0)}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+                                <div className="inline-flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setQuantity(cake.id, quantity - 1)}
+                                    className="rounded-full border border-border px-2 leading-none hover:bg-secondary"
+                                  >
+                                    −
+                                  </button>
+                                  <span className="tabular-nums">{quantity}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setQuantity(cake.id, quantity + 1)}
+                                    className="rounded-full border border-border px-2 leading-none hover:bg-secondary"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => removeItem(cake.id)}
+                                  className="underline-offset-4 hover:text-foreground hover:underline"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </li>
                   ))}
                 </ul>

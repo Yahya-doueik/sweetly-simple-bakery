@@ -10,6 +10,8 @@ export type Product = {
   tagline: string;
   description: string;
   price: number;
+  discountPercent?: number;
+  saleLabel?: string;
   image: string;
   images?: string[];
   tag?: string;

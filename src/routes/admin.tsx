@@ -37,6 +37,7 @@ import {
   type Product,
   type SiteSettings,
 } from "@/lib/store-data";
+import { getProductUnitPrice, normalizeDiscountPercent } from "@/lib/pricing";
 
 export const Route = createFileRoute("/admin")({
   component: AdminDashboard,
@@ -52,6 +53,8 @@ const EMPTY_PRODUCT: Product = {
   tagline: "",
   description: "",
   price: 0,
+  discountPercent: undefined,
+  saleLabel: "",
   image: "",
   images: [],
   tag: "",
@@ -73,6 +76,17 @@ function formatDate(date: string | null) {
 
 function totalRevenue(orders: OrderRecord[]) {
   return orders.reduce((sum, order) => sum + (order.status === "fulfilled" ? order.total : 0), 0);
+}
+
+function parseImageUrls(value: string) {
+  return [
+    ...new Set(
+      value
+        .split(/\r?\n/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ];
 }
 
 function AdminDashboard() {
@@ -182,6 +196,8 @@ function AdminDashboard() {
             .filter(Boolean)
             .filter((item, index, arr) => arr.indexOf(item) === index) ?? [],
         tag: productForm.tag?.trim() || undefined,
+        discountPercent: normalizeDiscountPercent(productForm.discountPercent),
+        saleLabel: productForm.saleLabel?.trim() || undefined,
         hidden: productForm.hidden === true,
       };
       if (
@@ -209,6 +225,7 @@ function AdminDashboard() {
       ...product,
       images: product.images ?? [product.image],
       tag: product.tag ?? "",
+      saleLabel: product.saleLabel ?? "",
       hidden: product.hidden === true,
     });
   };
@@ -671,27 +688,23 @@ function AdminDashboard() {
                   value={productForm.description}
                   onChange={(value) => setProductForm((prev) => ({ ...prev, description: value }))}
                 />
-                <Field
-                  label="Image URL"
-                  value={productForm.image}
-                  onChange={(value) => setProductForm((prev) => ({ ...prev, image: value }))}
-                />
                 <label className="block">
                   <span className="mb-2 block text-xs uppercase tracking-widest text-muted-foreground">
-                    Gallery images (one URL per line)
+                    Image URLs (first URL is cover image)
                   </span>
                   <textarea
-                    value={(productForm.images ?? [productForm.image]).join("\n")}
+                    value={[
+                      ...new Set(
+                        [productForm.image, ...(productForm.images ?? [])].filter(Boolean),
+                      ),
+                    ].join("\n")}
                     onChange={(event) =>
                       setProductForm((prev) => {
-                        const images = event.target.value
-                          .split("\n")
-                          .map((item) => item.trim())
-                          .filter(Boolean);
+                        const images = parseImageUrls(event.target.value);
                         return { ...prev, images, image: images[0] ?? "" };
                       })
                     }
-                    rows={4}
+                    rows={6}
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent focus:ring-2 focus:ring-accent/30"
                   />
                 </label>
@@ -702,6 +715,22 @@ function AdminDashboard() {
                   onChange={(value) =>
                     setProductForm((prev) => ({ ...prev, price: Number(value) || 0 }))
                   }
+                />
+                <Field
+                  label="Discount % (optional)"
+                  type="number"
+                  value={productForm.discountPercent ? String(productForm.discountPercent) : ""}
+                  onChange={(value) =>
+                    setProductForm((prev) => ({
+                      ...prev,
+                      discountPercent: normalizeDiscountPercent(value),
+                    }))
+                  }
+                />
+                <Field
+                  label="Sale label (optional)"
+                  value={productForm.saleLabel ?? ""}
+                  onChange={(value) => setProductForm((prev) => ({ ...prev, saleLabel: value }))}
                 />
                 <Field
                   label="Badge tag (optional)"
@@ -748,6 +777,7 @@ function AdminDashboard() {
                     <tr className="border-b border-border/60 text-muted-foreground">
                       <th className="pb-3 pr-4 font-medium">Product</th>
                       <th className="pb-3 pr-4 font-medium">Price</th>
+                      <th className="pb-3 pr-4 font-medium">Sale</th>
                       <th className="pb-3 pr-4 font-medium">Tag</th>
                       <th className="pb-3 pr-4 font-medium">Visibility</th>
                       <th className="pb-3 font-medium">Actions</th>
@@ -760,7 +790,14 @@ function AdminDashboard() {
                           <p className="font-medium text-foreground">{product.name}</p>
                           <p className="text-xs text-muted-foreground">{product.id}</p>
                         </td>
-                        <td className="py-3 pr-4 text-foreground">${product.price.toFixed(0)}</td>
+                        <td className="py-3 pr-4 text-foreground">
+                          ${getProductUnitPrice(product).toFixed(0)}
+                        </td>
+                        <td className="py-3 pr-4 text-xs text-muted-foreground">
+                          {product.discountPercent
+                            ? `${product.discountPercent}% ${product.saleLabel || "off"}`
+                            : "—"}
+                        </td>
                         <td className="py-3 pr-4 text-xs text-muted-foreground">
                           {product.tag || "—"}
                         </td>
