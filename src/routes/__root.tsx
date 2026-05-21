@@ -32,11 +32,18 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lazy Cake — Slow-made no-bake cakes" },
-      { name: "description", content: "Hand-finished no-bake chocolate cakes, made slowly with great ingredients. Order online for pickup or local delivery." },
-      { name: "author", content: "Lazy Cake Co." },
-      { property: "og:title", content: "Lazy Cake — Slow-made no-bake cakes" },
-      { property: "og:description", content: "Hand-finished no-bake chocolate cakes, made slowly with great ingredients." },
+      { title: "Cake It Easy — Slow-made no-bake cakes" },
+      {
+        name: "description",
+        content:
+          "Hand-finished no-bake chocolate cakes, made slowly with great ingredients. Order online for pickup or local delivery.",
+      },
+      { name: "author", content: "Cake It Easy" },
+      { property: "og:title", content: "Cake It Easy — Slow-made no-bake cakes" },
+      {
+        property: "og:description",
+        content: "Hand-finished no-bake chocolate cakes, made slowly with great ingredients.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },

@@ -19,11 +19,13 @@ import {
 import {
   DEFAULT_ABOUT_CONTENT,
   DEFAULT_HOME_CONTENT,
+  DEFAULT_SITE_SETTINGS,
   type AboutContent,
   type HomeContent,
   type NewsItem,
   type NewsPlacement,
   type Product,
+  type SiteSettings,
 } from "@/lib/store-data";
 
 const firebaseConfig = {
@@ -240,6 +242,100 @@ function normalizeNews(raw: unknown): NewsItem | null {
   };
 }
 
+function normalizePhoneList(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return [...new Set(raw.map((item) => `${item}`.trim()).filter(Boolean))];
+}
+
+function normalizeSiteSettings(raw: unknown): SiteSettings {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return DEFAULT_SITE_SETTINGS;
+  }
+  const data = raw as Partial<SiteSettings>;
+  const whatsappNumbers = normalizePhoneList(data.whatsappNumbers);
+  const firstNumber = whatsappNumbers[0] ?? DEFAULT_SITE_SETTINGS.defaultWhatsAppNumber;
+  const requestedDefault =
+    typeof data.defaultWhatsAppNumber === "string" ? data.defaultWhatsAppNumber.trim() : "";
+  const defaultWhatsAppNumber =
+    requestedDefault && whatsappNumbers.includes(requestedDefault) ? requestedDefault : firstNumber;
+
+  return {
+    brandName:
+      typeof data.brandName === "string" && data.brandName.trim().length > 0
+        ? data.brandName.trim()
+        : DEFAULT_SITE_SETTINGS.brandName,
+    supportEmail:
+      typeof data.supportEmail === "string" && data.supportEmail.trim().length > 0
+        ? data.supportEmail.trim()
+        : DEFAULT_SITE_SETTINGS.supportEmail,
+    whatsappNumbers:
+      whatsappNumbers.length > 0 ? whatsappNumbers : DEFAULT_SITE_SETTINGS.whatsappNumbers,
+    defaultWhatsAppNumber,
+    menu: {
+      eyebrow:
+        typeof data.menu?.eyebrow === "string" && data.menu.eyebrow.trim().length > 0
+          ? data.menu.eyebrow.trim()
+          : DEFAULT_SITE_SETTINGS.menu.eyebrow,
+      heading:
+        typeof data.menu?.heading === "string" && data.menu.heading.trim().length > 0
+          ? data.menu.heading.trim()
+          : DEFAULT_SITE_SETTINGS.menu.heading,
+      description:
+        typeof data.menu?.description === "string" && data.menu.description.trim().length > 0
+          ? data.menu.description.trim()
+          : DEFAULT_SITE_SETTINGS.menu.description,
+    },
+    customOrders: {
+      eyebrow:
+        typeof data.customOrders?.eyebrow === "string" &&
+        data.customOrders.eyebrow.trim().length > 0
+          ? data.customOrders.eyebrow.trim()
+          : DEFAULT_SITE_SETTINGS.customOrders.eyebrow,
+      heading:
+        typeof data.customOrders?.heading === "string" &&
+        data.customOrders.heading.trim().length > 0
+          ? data.customOrders.heading.trim()
+          : DEFAULT_SITE_SETTINGS.customOrders.heading,
+      description:
+        typeof data.customOrders?.description === "string" &&
+        data.customOrders.description.trim().length > 0
+          ? data.customOrders.description.trim()
+          : DEFAULT_SITE_SETTINGS.customOrders.description,
+      messageLabel:
+        typeof data.customOrders?.messageLabel === "string" &&
+        data.customOrders.messageLabel.trim().length > 0
+          ? data.customOrders.messageLabel.trim()
+          : DEFAULT_SITE_SETTINGS.customOrders.messageLabel,
+      submitLabel:
+        typeof data.customOrders?.submitLabel === "string" &&
+        data.customOrders.submitLabel.trim().length > 0
+          ? data.customOrders.submitLabel.trim()
+          : DEFAULT_SITE_SETTINGS.customOrders.submitLabel,
+      whatsappIntro:
+        typeof data.customOrders?.whatsappIntro === "string" &&
+        data.customOrders.whatsappIntro.trim().length > 0
+          ? data.customOrders.whatsappIntro.trim()
+          : DEFAULT_SITE_SETTINGS.customOrders.whatsappIntro,
+    },
+    footer: {
+      tagline:
+        typeof data.footer?.tagline === "string" && data.footer.tagline.trim().length > 0
+          ? data.footer.tagline.trim()
+          : DEFAULT_SITE_SETTINGS.footer.tagline,
+      contactHeading:
+        typeof data.footer?.contactHeading === "string" &&
+        data.footer.contactHeading.trim().length > 0
+          ? data.footer.contactHeading.trim()
+          : DEFAULT_SITE_SETTINGS.footer.contactHeading,
+      copyrightNote:
+        typeof data.footer?.copyrightNote === "string" &&
+        data.footer.copyrightNote.trim().length > 0
+          ? data.footer.copyrightNote.trim()
+          : DEFAULT_SITE_SETTINGS.footer.copyrightNote,
+    },
+  };
+}
+
 export function buildCustomerKey(email: string, phone: string) {
   const normalizedEmail = email.trim().toLowerCase();
   const normalizedPhone = phone.replace(/\D/g, "");
@@ -252,13 +348,18 @@ export async function bootstrapStoreData() {
 
   const aboutRef = doc(db, "content", "about");
   const homeRef = doc(db, "content", "home");
+  const siteSettingsRef = doc(db, "content", "siteSettings");
   const aboutSnapshot = await getDoc(aboutRef);
   const homeSnapshot = await getDoc(homeRef);
+  const siteSettingsSnapshot = await getDoc(siteSettingsRef);
   if (!aboutSnapshot.exists()) {
     await setDoc(aboutRef, DEFAULT_ABOUT_CONTENT);
   }
   if (!homeSnapshot.exists()) {
     await setDoc(homeRef, DEFAULT_HOME_CONTENT);
+  }
+  if (!siteSettingsSnapshot.exists()) {
+    await setDoc(siteSettingsRef, DEFAULT_SITE_SETTINGS);
   }
 }
 
@@ -327,6 +428,18 @@ export function subscribeNews(onData: (news: NewsItem[]) => void) {
         return a.placement.localeCompare(b.placement);
       });
     onData(news);
+  });
+}
+
+export function subscribeSiteSettings(onData: (settings: SiteSettings) => void) {
+  const db = getDb();
+  if (!db) return () => {};
+  return onSnapshot(doc(db, "content", "siteSettings"), (snapshot) => {
+    if (!snapshot.exists()) {
+      onData(DEFAULT_SITE_SETTINGS);
+      return;
+    }
+    onData(normalizeSiteSettings(snapshot.data()));
   });
 }
 
@@ -437,6 +550,13 @@ export async function saveHomeContent(content: HomeContent) {
   const db = getDb();
   if (!db) return;
   await setDoc(doc(db, "content", "home"), content);
+}
+
+export async function saveSiteSettings(settings: SiteSettings) {
+  const db = getDb();
+  if (!db) return;
+  const normalized = normalizeSiteSettings(settings);
+  await setDoc(doc(db, "content", "siteSettings"), normalized);
 }
 
 export async function saveNews(newsItem: NewsItem) {

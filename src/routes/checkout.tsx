@@ -5,14 +5,14 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Reveal } from "@/components/Reveal";
 import { useCart } from "@/lib/cart";
-import { WHATSAPP_NUMBER } from "@/lib/constants";
-import { persistOrder } from "@/lib/firebase-store";
+import { persistOrder, subscribeSiteSettings } from "@/lib/firebase-store";
+import { DEFAULT_SITE_SETTINGS } from "@/lib/store-data";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
     meta: [
-      { title: "Checkout — Lazy Cake" },
-      { name: "description", content: "Review your box and place your Lazy Cake order." },
+      { title: "Checkout — Cake It Easy" },
+      { name: "description", content: "Review your box and place your Cake It Easy order." },
     ],
   }),
   component: Checkout,
@@ -60,12 +60,14 @@ function formatPrice(price: number) {
 }
 
 function buildWhatsAppMessage({
+  brandName,
   items,
   subtotal,
   shipping,
   total,
   customer,
 }: {
+  brandName: string;
   items: ReturnType<typeof useCart>["items"];
   subtotal: number;
   shipping: number;
@@ -88,7 +90,7 @@ function buildWhatsAppMessage({
   ].filter(Boolean);
 
   return [
-    "Hello, I'd like to place an order from Lazy Cake.",
+    `Hello, I'd like to place an order from ${brandName}.`,
     "",
     "Order details:",
     ...orderLines,
@@ -106,8 +108,14 @@ function Checkout() {
   const { items, subtotal, setQuantity, removeItem, clear } = useCart();
   const [submitting, setSubmitting] = useState(false);
   const [savedCustomer, setSavedCustomer] = useState<CustomerDetails>(EMPTY_CUSTOMER_DETAILS);
+  const [siteSettings, setSiteSettings] = useState(DEFAULT_SITE_SETTINGS);
   const shipping = items.length === 0 ? 0 : SHIPPING_FLAT;
   const total = subtotal + shipping;
+
+  useEffect(() => {
+    const unsub = subscribeSiteSettings(setSiteSettings);
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     try {
@@ -143,16 +151,27 @@ function Checkout() {
       });
 
       const message = buildWhatsAppMessage({
+        brandName: siteSettings.brandName,
         items,
         subtotal,
         shipping,
         total,
         customer,
       });
+      const whatsappNumber = (
+        siteSettings.defaultWhatsAppNumber ||
+        siteSettings.whatsappNumbers[0] ||
+        ""
+      ).replace(/\D/g, "");
+      if (!whatsappNumber) {
+        toast.error("Unable to place order.", {
+          description: "No default WhatsApp number is configured in admin settings.",
+        });
+        setSubmitting(false);
+        return;
+      }
 
-      window.location.assign(
-        `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`,
-      );
+      window.location.assign(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`);
       clear();
     } catch {
       toast.error("Unable to place order.", {

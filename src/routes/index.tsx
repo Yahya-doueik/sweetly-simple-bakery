@@ -6,34 +6,36 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { CakeCard } from "@/components/CakeCard";
 import { Reveal, StaggerGroup, StaggerItem } from "@/components/Reveal";
-import { WHATSAPP_NUMBER } from "@/lib/constants";
 import {
   bootstrapStoreData,
   subscribeAbout,
   subscribeHomeContent,
   subscribeNews,
   subscribeProducts,
+  subscribeSiteSettings,
 } from "@/lib/firebase-store";
 import {
   DEFAULT_ABOUT_CONTENT,
   DEFAULT_HOME_CONTENT,
+  DEFAULT_SITE_SETTINGS,
   type AboutContent,
   type HomeContent,
   type NewsItem,
   type NewsPlacement,
   type Product,
+  type SiteSettings,
 } from "@/lib/store-data";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Lazy Cake — Slow-made no-bake cakes" },
+      { title: "Cake It Easy — Slow-made no-bake cakes" },
       {
         name: "description",
         content:
           "Hand-finished no-bake chocolate cakes, made slowly with great ingredients. Order online for pickup or local delivery.",
       },
-      { property: "og:title", content: "Lazy Cake — Slow-made no-bake cakes" },
+      { property: "og:title", content: "Cake It Easy — Slow-made no-bake cakes" },
       {
         property: "og:description",
         content: "Hand-finished no-bake chocolate cakes from our small kitchen.",
@@ -61,6 +63,7 @@ function Home() {
   const [about, setAbout] = useState<AboutContent>(DEFAULT_ABOUT_CONTENT);
   const [home, setHome] = useState<HomeContent>(DEFAULT_HOME_CONTENT);
   const [news, setNews] = useState<NewsItem[]>([]);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(DEFAULT_SITE_SETTINGS);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 80]);
   const heroScale = useTransform(scrollYProgress, [0, 1], [1, 1.08]);
@@ -81,11 +84,13 @@ function Home() {
     const unsubAbout = subscribeAbout(setAbout);
     const unsubHome = subscribeHomeContent(setHome);
     const unsubNews = subscribeNews(setNews);
+    const unsubSiteSettings = subscribeSiteSettings(setSiteSettings);
     return () => {
       unsubProducts();
       unsubAbout();
       unsubHome();
       unsubNews();
+      unsubSiteSettings();
     };
   }, []);
 
@@ -175,14 +180,13 @@ function Home() {
       <NewsSection items={getNewsForPlacement("menu")} />
       <section id="menu" className="mx-auto max-w-6xl px-6 py-20 scroll-mt-20">
         <Reveal className="max-w-2xl">
-          <p className="text-sm uppercase tracking-[0.25em] text-accent">The Menu</p>
-          <h2 className="mt-3 font-display text-5xl text-foreground md:text-6xl">
-            Pick your slice.
-          </h2>
-          <p className="mt-5 text-lg text-muted-foreground">
-            Each cake is set overnight, sliced cold, and packed in a chilled box. Ships locally
-            Tue–Fri.
+          <p className="text-sm uppercase tracking-[0.25em] text-accent">
+            {siteSettings.menu.eyebrow}
           </p>
+          <h2 className="mt-3 font-display text-5xl text-foreground md:text-6xl">
+            {siteSettings.menu.heading}
+          </h2>
+          <p className="mt-5 text-lg text-muted-foreground">{siteSettings.menu.description}</p>
         </Reveal>
         <StaggerGroup className="mt-14 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           {products.map((c) => (
@@ -216,26 +220,23 @@ function Home() {
         className="mx-auto grid max-w-5xl gap-16 px-6 py-20 md:grid-cols-2 md:py-28 scroll-mt-20"
       >
         <Reveal>
-          <p className="text-sm uppercase tracking-[0.25em] text-accent">Say hello</p>
-          <h2 className="mt-3 font-display text-5xl text-foreground md:text-6xl">
-            Custom orders & events.
-          </h2>
-          <p className="mt-6 text-muted-foreground">
-            Birthdays, weddings, dinner parties, or just a Tuesday — tell us what you're dreaming
-            up.
+          <p className="text-sm uppercase tracking-[0.25em] text-accent">
+            {siteSettings.customOrders.eyebrow}
           </p>
+          <h2 className="mt-3 font-display text-5xl text-foreground md:text-6xl">
+            {siteSettings.customOrders.heading}
+          </h2>
+          <p className="mt-6 text-muted-foreground">{siteSettings.customOrders.description}</p>
           <dl className="mt-10 space-y-4 text-sm">
             <div>
               <dt className="font-medium text-foreground">Email</dt>
-              <dd className="text-muted-foreground">hello@lazycake.shop</dd>
+              <dd className="text-muted-foreground">{siteSettings.supportEmail}</dd>
             </div>
             <div>
               <dt className="font-medium text-foreground">Phone</dt>
-              <dd className="text-muted-foreground">+1 (555) 010-2244</dd>
-            </div>
-            <div>
-              <dt className="font-medium text-foreground">Studio</dt>
-              <dd className="text-muted-foreground">14 Linden Lane · Mon–Sat 9–7</dd>
+              <dd className="text-muted-foreground">
+                {siteSettings.defaultWhatsAppNumber || siteSettings.whatsappNumbers[0]}
+              </dd>
             </div>
           </dl>
         </Reveal>
@@ -248,13 +249,17 @@ function Home() {
               const email = sanitizeForWhatsApp(formData.get("email"), MAX_EMAIL_LENGTH);
               const message = sanitizeForWhatsApp(formData.get("message"), MAX_MESSAGE_LENGTH);
               const whatsappMessage = [
-                "Hello, I'd like to place a custom order.",
+                siteSettings.customOrders.whatsappIntro,
                 "",
                 `Name: ${name}`,
                 `Email: ${email}`,
                 `Custom order details: ${message}`,
               ].join("\n");
-              const whatsappNumber = WHATSAPP_NUMBER.replace(/\D/g, "");
+              const whatsappNumber = (
+                siteSettings.defaultWhatsAppNumber ||
+                siteSettings.whatsappNumbers[0] ||
+                ""
+              ).replace(/\D/g, "");
               if (!whatsappNumber) return;
               window.location.assign(
                 `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`,
@@ -289,7 +294,7 @@ function Home() {
             </div>
             <div>
               <label htmlFor="msg" className="mb-2 block text-sm font-medium text-foreground">
-                What can we make for you?
+                {siteSettings.customOrders.messageLabel}
               </label>
               <textarea
                 id="msg"
@@ -304,7 +309,7 @@ function Home() {
               type="submit"
               className="w-full rounded-full bg-primary py-3 text-sm font-medium text-primary-foreground transition-all hover:opacity-90"
             >
-              Send message
+              {siteSettings.customOrders.submitLabel}
             </button>
           </form>
         </Reveal>
