@@ -493,12 +493,22 @@ function AdminDashboard() {
             <p className="text-sm uppercase tracking-[0.25em] text-accent">Admin dashboard</p>
             <h1 className="mt-2 font-display text-5xl text-foreground">Store control center</h1>
           </div>
-          <button
-            onClick={onLogout}
-            className="rounded-full border border-foreground/20 px-5 py-2 text-sm font-medium text-foreground transition-all hover:bg-foreground hover:text-background"
-          >
-            Logout
-          </button>
+          <div className="flex items-center gap-3">
+            <a
+              href="https://yahya-doueik.github.io/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-all hover:opacity-90"
+            >
+              Cookbook
+            </a>
+            <button
+              onClick={onLogout}
+              className="rounded-full border border-foreground/20 px-5 py-2 text-sm font-medium text-foreground transition-all hover:bg-foreground hover:text-background"
+            >
+              Logout
+            </button>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
